@@ -1,35 +1,47 @@
-import { X, ShieldCheck, AlertTriangle, FileDown } from "lucide-react"
+import { X, ShieldCheck, AlertTriangle, FileDown, Clock } from "lucide-react"
 import PhotoVerifier from "./PhotoVerifier"
 import ReportList from "./ReportList"
-import { conditionColors, trackedFeatures, featureState, describeAge } from "./conditions"
+import Button from "./ui/Button"
+import Pill from "./ui/Pill"
+import {
+  conditionLabels,
+  conditionTones,
+  trackedFeatures,
+  featureLabels,
+  featureState,
+  describeAge,
+} from "./conditions"
 import { loadReports } from "./votes"
 import { reportsToCsv, downloadCsv, csvFilename } from "./exportReport"
 
-const labels = {
-  ramp: "Ramp",
-  elevator: "Elevator",
-  tactilePaving: "Tactile paving",
-  accessibleToilet: "Accessible toilet",
-}
-
 function Provenance({ state }) {
   if (state.confirmations === 0) {
-    return <span className="text-xs text-slate-400">No reports yet</span>
+    return <span className="text-micro text-muted-foreground">No reports yet</span>
   }
   if (state.confirmed) {
     return (
-      <span className="flex items-center gap-1 text-xs text-emerald-700">
-        <ShieldCheck size={12} />
-        Confirmed by {state.confirmations} · verified {describeAge(state.lastVerified)}
+      <span
+        className="flex items-center gap-1 text-micro"
+        style={{ color: "var(--tone-success-text)" }}
+      >
+        <ShieldCheck size={13} aria-hidden="true" />
+        Confirmed by {state.confirmations}, checked {describeAge(state.lastVerified)}
       </span>
     )
   }
   return (
-    <span className="flex items-center gap-1 text-xs text-amber-700">
-      <AlertTriangle size={12} />
+    <span
+      className="flex items-center gap-1 text-micro"
+      style={{ color: "var(--tone-warning-text)" }}
+    >
+      {state.stale ? (
+        <Clock size={13} aria-hidden="true" />
+      ) : (
+        <AlertTriangle size={13} aria-hidden="true" />
+      )}
       {state.stale
-        ? `Unconfirmed · last verified ${describeAge(state.lastVerified)}`
-        : `Reported by ${state.confirmations} · ${describeAge(state.lastVerified)} · unconfirmed`}
+        ? `Not confirmed recently, last checked ${describeAge(state.lastVerified)}`
+        : `Reported by ${state.confirmations}, ${describeAge(state.lastVerified)}, awaiting confirmation`}
     </span>
   )
 }
@@ -41,47 +53,68 @@ export default function LocationDetails({ location, userId, reportKey, onClose, 
   }
 
   return (
-    <div className="absolute inset-x-3 bottom-3 z-10 max-h-[75%] overflow-y-auto rounded-3xl bg-white p-5 shadow-xl ring-1 ring-slate-900/5 space-y-4 md:inset-y-3 md:left-auto md:right-3 md:w-96 md:max-h-[calc(100%-1.5rem)]">
-      <div className="flex items-start justify-between">
-        <div className="min-w-0">
-          <h2 className="text-lg font-bold tracking-tight text-slate-900">{location.name}</h2>
-          <p className="text-sm text-slate-500">{location.category}</p>
+    <section
+      aria-label={`Accessibility details for ${location.name}`}
+      className="absolute inset-x-0 bottom-0 z-20 flex max-h-[78%] flex-col rounded-t-hero border border-border bg-card shadow-float md:inset-y-3 md:left-auto md:right-3 md:max-h-none md:w-[22rem] md:rounded-hero lg:w-96"
+    >
+      <div className="shrink-0 px-5 pb-3 pt-3">
+        <span
+          aria-hidden="true"
+          className="mx-auto mb-3 block h-1 w-10 rounded-full bg-border md:hidden"
+        />
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="truncate font-display text-lg font-bold tracking-tight">
+              {location.name}
+            </h2>
+            <p className="text-micro text-muted-foreground">{location.category}</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close details"
+            className="tap -mr-2 -mt-2 grid shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            <X size={20} aria-hidden="true" />
+          </button>
         </div>
-        <button onClick={onClose} aria-label="Close details" className="text-slate-400 shrink-0">
-          <X size={20} />
-        </button>
       </div>
 
-      <ul className="space-y-2">
-        {trackedFeatures.map((key) => {
-          const state = featureState(location, key)
-          return (
-            <li key={key} className="flex items-start justify-between gap-3 rounded-2xl bg-slate-50 px-3 py-2.5">
-              <div className="min-w-0">
-                <p className="text-sm text-slate-700">{labels[key]}</p>
-                <Provenance state={state} />
-              </div>
-              <span
-                className="shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold text-white"
-                style={{ backgroundColor: conditionColors[state.condition] }}
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 pb-5">
+        <ul className="space-y-2">
+          {trackedFeatures.map((key) => {
+            const state = featureState(location, key)
+            return (
+              <li
+                key={key}
+                className="flex items-start justify-between gap-3 rounded-control bg-muted px-3 py-2.5"
               >
-                {state.condition}
-              </span>
-            </li>
-          )
-        })}
-      </ul>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">{featureLabels[key]}</p>
+                  <Provenance state={state} />
+                </div>
+                <Pill tone={conditionTones[state.condition]} className="shrink-0">
+                  {conditionLabels[state.condition]}
+                </Pill>
+              </li>
+            )
+          })}
+        </ul>
 
-      <ReportList locationId={location.id} userId={userId} refreshKey={reportKey} onConfirmed={onReported} />
+        <ReportList
+          locationId={location.id}
+          userId={userId}
+          refreshKey={reportKey}
+          onConfirmed={onReported}
+        />
 
-      <button
-        onClick={exportCsv}
-        className="flex w-full items-center justify-center gap-2 rounded-full border border-slate-300 py-2.5 text-sm font-semibold text-slate-700"
-      >
-        <FileDown size={15} />
-        Export reports for council (CSV)
-      </button>
-      <PhotoVerifier location={location} userId={userId} onReported={onReported} />
-    </div>
+        <Button variant="secondary" onClick={exportCsv} full>
+          <FileDown size={16} aria-hidden="true" />
+          Export reports for council
+        </Button>
+
+        <PhotoVerifier location={location} userId={userId} onReported={onReported} />
+      </div>
+    </section>
   )
 }

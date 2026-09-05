@@ -6,6 +6,22 @@ export const conditionColors = {
   none: "#64748b",
 }
 
+export const conditionTones = {
+  blocked: "danger",
+  damaged: "warning",
+  usable: "success",
+  unclear: "neutral",
+  none: "neutral",
+}
+
+export const conditionLabels = {
+  blocked: "Blocked",
+  damaged: "Needs repair",
+  usable: "Fully usable",
+  unclear: "Unverified",
+  none: "Unverified",
+}
+
 export const severity = { blocked: 3, damaged: 2, unclear: 1, none: 1, usable: 0 }
 
 export const trackedFeatures = ["ramp", "elevator", "tactilePaving", "accessibleToilet"]
@@ -68,7 +84,7 @@ export const featureLabels = {
   ramp: "Step-free / ramp",
   elevator: "Working elevator",
   tactilePaving: "Tactile paving",
-  accessibleToilet: "Accessible restroom",
+  accessibleToilet: "Accessible toilet",
 }
 
 export function matchesFilters(location, required) {
