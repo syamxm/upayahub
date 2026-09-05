@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { Award } from "lucide-react"
 import Modal from "./ui/Modal"
+import LoadFailure from "./ui/LoadFailure"
 import { loadLeaderboard } from "./leaderboard"
 
 function Rank({ position }) {
@@ -13,12 +14,17 @@ function Rank({ position }) {
 
 export default function Leaderboard({ userId, onClose }) {
   const [entries, setEntries] = useState(null)
+  const [failed, setFailed] = useState(false)
 
   useEffect(() => {
     let active = true
-    loadLeaderboard().then((loaded) => {
-      if (active) setEntries(loaded)
-    })
+    loadLeaderboard()
+      .then((loaded) => {
+        if (active) setEntries(loaded)
+      })
+      .catch(() => {
+        if (active) setFailed(true)
+      })
     return () => {
       active = false
     }
@@ -26,7 +32,11 @@ export default function Leaderboard({ userId, onClose }) {
 
   return (
     <Modal title="Top contributors" onClose={onClose}>
-      {entries === null ? (
+      {failed ? (
+        <div className="p-4">
+          <LoadFailure message="Could not load contributors." />
+        </div>
+      ) : entries === null ? (
         <div className="space-y-2 p-4" aria-busy="true">
           <span className="sr-only">Loading contributors</span>
           {[0, 1, 2].map((row) => (

@@ -9,7 +9,33 @@ export default function Modal({ title, onClose, children, footer }) {
     const previous = document.activeElement
     panel.current?.focus()
     function onKeyDown(event) {
-      if (event.key === "Escape") onClose()
+      if (event.key === "Escape") {
+        onClose()
+        return
+      }
+      if (event.key !== "Tab" || !panel.current) return
+
+      const focusable = [
+        ...panel.current.querySelectorAll(
+          'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        ),
+      ]
+      if (focusable.length === 0) return
+
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      const current = document.activeElement
+
+      if (!panel.current.contains(current)) {
+        event.preventDefault()
+        first.focus()
+      } else if (event.shiftKey && current === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && current === last) {
+        event.preventDefault()
+        first.focus()
+      }
     }
     document.addEventListener("keydown", onKeyDown)
     return () => {
@@ -22,7 +48,7 @@ export default function Modal({ title, onClose, children, footer }) {
     <div className="fixed inset-0 z-50 grid place-items-end bg-[#0f1923]/50 p-0 sm:place-items-center sm:p-4">
       <button
         type="button"
-        aria-label="Close"
+        aria-hidden="true"
         tabIndex={-1}
         onClick={onClose}
         className="absolute inset-0 cursor-default"

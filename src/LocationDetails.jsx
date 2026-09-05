@@ -1,3 +1,4 @@
+import { useEffect } from "react"
 import { X, ShieldCheck, AlertTriangle, FileDown, Clock } from "lucide-react"
 import PhotoVerifier from "./PhotoVerifier"
 import ReportList from "./ReportList"
@@ -47,6 +48,14 @@ function Provenance({ state }) {
 }
 
 export default function LocationDetails({ location, userId, reportKey, onClose, onReported }) {
+  useEffect(() => {
+    function onKeyDown(event) {
+      if (event.key === "Escape") onClose()
+    }
+    document.addEventListener("keydown", onKeyDown)
+    return () => document.removeEventListener("keydown", onKeyDown)
+  }, [onClose])
+
   async function exportCsv() {
     const reports = await loadReports(location.id)
     downloadCsv(csvFilename(location), reportsToCsv(location, reports))

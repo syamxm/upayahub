@@ -6,6 +6,8 @@ import LocationList from "../LocationList"
 import MapLegend from "../MapLegend"
 import MapFilters from "../MapFilters"
 import BottomSheet from "../ui/BottomSheet"
+import ListSkeleton from "../ui/ListSkeleton"
+import LoadFailure from "../ui/LoadFailure"
 import ScreenHeader from "../ui/ScreenHeader"
 
 export default function ExploreScreen({
@@ -23,6 +25,8 @@ export default function ExploreScreen({
   onLocate,
   locating,
   onOpenFeatures,
+  status,
+  onRetry,
 }) {
   const [search, setSearch] = useState("")
   const [sheetOpen, setSheetOpen] = useState(false)
@@ -35,6 +39,21 @@ export default function ExploreScreen({
   const emptyMessage = term
     ? `No places match "${search.trim()}".`
     : "No places match these filters yet."
+
+  function list(onChoose) {
+    if (status === "loading") return <ListSkeleton label="Loading places" />
+    if (status === "error")
+      return <LoadFailure message="Could not load places." onRetry={onRetry} />
+    return (
+      <LocationList
+        locations={listed}
+        selectedId={selected?.id ?? null}
+        onSelect={onChoose}
+        origin={origin}
+        emptyMessage={emptyMessage}
+      />
+    )
+  }
 
   function choose(location) {
     onSelect(location)
@@ -90,13 +109,7 @@ export default function ExploreScreen({
 
       <div className="flex min-h-0 flex-1 md:flex-row">
         <div className="hidden shrink-0 overflow-y-auto border-r border-border bg-background p-3 md:block md:w-72 lg:w-80">
-          <LocationList
-            locations={listed}
-            selectedId={selected?.id ?? null}
-            onSelect={onSelect}
-            origin={origin}
-            emptyMessage={emptyMessage}
-          />
+          {list(onSelect)}
         </div>
 
         <div className="relative min-h-0 flex-1">
@@ -108,13 +121,7 @@ export default function ExploreScreen({
             expanded={sheetOpen}
             onToggle={setSheetOpen}
           >
-            <LocationList
-              locations={listed}
-              selectedId={selected?.id ?? null}
-              onSelect={choose}
-              origin={origin}
-              emptyMessage={emptyMessage}
-            />
+            {list(choose)}
           </BottomSheet>
 
           {selected && (
