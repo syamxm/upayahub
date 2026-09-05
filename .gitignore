@@ -10,7 +10,13 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
-*.local
+.env
+.env.*
+!.env.local.example
+functions/.env
+functions/.env.*
+*-service-account*.json
+serviceAccount*.json
 
 # Editor directories and files
 .vscode/*
@@ -25,3 +31,5 @@ dist-ssr
 /.agents/skills/design-taste-frontend
 /.claude/skills
 /skills-lock.json
+
+functions/node_modules
