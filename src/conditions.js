@@ -28,6 +28,8 @@ export const trackedFeatures = ["ramp", "elevator", "tactilePaving", "accessible
 
 export const confirmationsRequired = 2
 
+export const pointsPerReport = 10
+
 export const freshnessDays = 30
 
 const emptyState = { condition: "unclear", confirmations: 0, lastVerified: null }

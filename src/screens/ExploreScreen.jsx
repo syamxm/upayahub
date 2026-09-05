@@ -1,6 +1,5 @@
-import { useState } from "react"
+import { lazy, Suspense, useState } from "react"
 import { Navigation, Search, Sparkles } from "lucide-react"
-import AccessibilityMap from "../AccessibilityMap"
 import LocationDetails from "../LocationDetails"
 import LocationList from "../LocationList"
 import MapLegend from "../MapLegend"
@@ -9,6 +8,9 @@ import BottomSheet from "../ui/BottomSheet"
 import ListSkeleton from "../ui/ListSkeleton"
 import LoadFailure from "../ui/LoadFailure"
 import ScreenHeader from "../ui/ScreenHeader"
+import Spinner from "../ui/Spinner"
+
+const AccessibilityMap = lazy(() => import("../AccessibilityMap"))
 
 export default function ExploreScreen({
   locations,
@@ -113,7 +115,15 @@ export default function ExploreScreen({
         </div>
 
         <div className="relative min-h-0 flex-1">
-          <AccessibilityMap locations={listed} onSelect={onSelect} />
+          <Suspense
+            fallback={
+              <div className="grid h-full place-items-center bg-muted">
+                <Spinner label="Loading map" size={24} className="text-muted-foreground" />
+              </div>
+            }
+          >
+            <AccessibilityMap locations={listed} onSelect={onSelect} />
+          </Suspense>
           <MapLegend />
 
           <BottomSheet

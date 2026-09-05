@@ -1,7 +1,7 @@
 import { Award, Sparkles, Ticket } from "lucide-react"
 import Card from "../ui/Card"
 import TodoStub from "../ui/TodoStub"
-import { pointsPerReport } from "../submitReport"
+import { pointsPerReport } from "../conditions"
 
 export default function RewardsPanel({ points, reportCount }) {
   return (

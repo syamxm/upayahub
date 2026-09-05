@@ -1,6 +1,7 @@
 import { collection, addDoc, doc, updateDoc, setDoc, increment, serverTimestamp } from "firebase/firestore"
-import { db, auth } from "./firebase"
-import { featureState, isUpgrade } from "./conditions"
+import { auth } from "./firebase"
+import { db } from "./db"
+import { featureState, isUpgrade, pointsPerReport } from "./conditions"
 
 const featureFields = {
   ramp: "ramp",
@@ -8,8 +9,6 @@ const featureFields = {
   tactile_paving: "tactilePaving",
   accessible_toilet: "accessibleToilet",
 }
-
-export const pointsPerReport = 10
 
 export async function submitReport(location, result, userId) {
   const field = featureFields[result.featureType]

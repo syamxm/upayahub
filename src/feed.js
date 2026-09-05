@@ -8,7 +8,7 @@ import {
   where,
   Timestamp,
 } from "firebase/firestore"
-import { db } from "./firebase"
+import { db } from "./db"
 import { displayReporter } from "./reporter"
 
 export const feedSize = 50

@@ -1,21 +1,21 @@
-import { useEffect, useState } from "react"
-import { collection, getDocs, doc, getDoc, setDoc, deleteField } from "firebase/firestore"
+import { lazy, Suspense, useEffect, useState } from "react"
 import { onAuthStateChanged } from "firebase/auth"
 import { AlertCircle, Map, User, Users } from "lucide-react"
-import { db, auth } from "./firebase"
+import { auth } from "./firebase"
 import SignIn from "./SignIn"
-import Leaderboard from "./Leaderboard"
-import AccountMenu from "./AccountMenu"
 import AppShell from "./ui/AppShell"
 import MainNav from "./ui/MainNav"
 import Spinner from "./ui/Spinner"
-import ExploreScreen from "./screens/ExploreScreen"
-import ProfileScreen from "./screens/ProfileScreen"
-import ReportScreen from "./screens/ReportScreen"
-import CommunityScreen from "./screens/CommunityScreen"
-import FeaturesScreen from "./screens/FeaturesScreen"
-import { pointsPerReport } from "./submitReport"
-import { matchesFilters } from "./conditions"
+import ScreenLoading from "./ui/ScreenLoading"
+
+const Leaderboard = lazy(() => import("./Leaderboard"))
+const AccountMenu = lazy(() => import("./AccountMenu"))
+const ExploreScreen = lazy(() => import("./screens/ExploreScreen"))
+const ProfileScreen = lazy(() => import("./screens/ProfileScreen"))
+const ReportScreen = lazy(() => import("./screens/ReportScreen"))
+const CommunityScreen = lazy(() => import("./screens/CommunityScreen"))
+const FeaturesScreen = lazy(() => import("./screens/FeaturesScreen"))
+import { matchesFilters, pointsPerReport } from "./conditions"
 
 const tabs = [
   { id: "explore", label: "Explore", icon: Map },
@@ -45,10 +45,11 @@ export default function App() {
   useEffect(() => {
     if (!user) return
     let active = true
-    getDocs(collection(db, "locations"))
-      .then((snapshot) => {
+    import("./session")
+      .then(({ loadLocations }) => loadLocations())
+      .then((loaded) => {
         if (!active) return
-        setLocations(snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() })))
+        setLocations(loaded)
         setLocationsStatus("ready")
       })
       .catch(() => {
@@ -64,15 +65,10 @@ export default function App() {
       setCheckingAuth(false)
       setUser(account)
       if (!account) return
-      const profile = doc(db, "users", account.uid)
-      await setDoc(
-        profile,
-        { name: account.displayName, photo: account.photoURL, email: deleteField() },
-        { merge: true }
-      )
-      const saved = await getDoc(profile)
-      setPoints(saved.data().points ?? 0)
-      setReportCount(saved.data().reportCount ?? 0)
+      const { syncProfile } = await import("./session")
+      const profile = await syncProfile(account)
+      setPoints(profile.points)
+      setReportCount(profile.reportCount)
     })
   }, [])
 
@@ -149,67 +145,72 @@ export default function App() {
   if (showFeatures) {
     return (
       <AppShell nav={<MainNav items={tabs} active={tab} onChange={openTab} />}>
-        <FeaturesScreen
+        <Suspense fallback={<ScreenLoading label="Loading community tools" />}>
+          <FeaturesScreen
           onBack={() => setShowFeatures(false)}
           locations={locations}
           points={points}
           reportCount={reportCount}
           origin={origin}
-          onLocate={locate}
-          locating={locating}
-        />
+            onLocate={locate}
+            locating={locating}
+          />
+        </Suspense>
       </AppShell>
     )
   }
 
   return (
     <AppShell nav={<MainNav items={tabs} active={tab} onChange={openTab} />}>
-      {tab === "explore" && (
-        <ExploreScreen
-          locations={locations}
-          visible={visible}
-          filters={filters}
-          onToggleFilter={toggleFilter}
-          selected={selected}
-          onSelect={(location) => setSelectedId(location.id)}
-          onClearSelection={() => setSelectedId(null)}
-          userId={user.uid}
-          reportKey={reportKey}
-          onReported={applyReport}
-          origin={origin}
-          onLocate={locate}
-          locating={locating}
-          onOpenFeatures={() => setShowFeatures(true)}
-          status={locationsStatus}
-          onRetry={reloadLocations}
-        />
-      )}
+      <Suspense fallback={<ScreenLoading label="Loading" />}>
+        {tab === "explore" && (
+          <ExploreScreen
+            locations={locations}
+            visible={visible}
+            filters={filters}
+            onToggleFilter={toggleFilter}
+            selected={selected}
+            onSelect={(location) => setSelectedId(location.id)}
+            onClearSelection={() => setSelectedId(null)}
+            userId={user.uid}
+            reportKey={reportKey}
+            onReported={applyReport}
+            origin={origin}
+            onLocate={locate}
+            locating={locating}
+            onOpenFeatures={() => setShowFeatures(true)}
+            status={locationsStatus}
+            onRetry={reloadLocations}
+          />
+        )}
 
-      {tab === "report" && (
-        <ReportScreen
-          locations={locations}
-          userId={user.uid}
-          onReported={applyReport}
-          origin={origin}
-          onLocate={locate}
-          locating={locating}
-          status={locationsStatus}
-          onRetry={reloadLocations}
-        />
-      )}
+        {tab === "report" && (
+          <ReportScreen
+            locations={locations}
+            userId={user.uid}
+            onReported={applyReport}
+            origin={origin}
+            onLocate={locate}
+            locating={locating}
+            status={locationsStatus}
+            onRetry={reloadLocations}
+          />
+        )}
 
-      {tab === "community" && <CommunityScreen onOpenLocation={openLocation} />}
+        {tab === "community" && <CommunityScreen onOpenLocation={openLocation} />}
 
-      {tab === "profile" && (
-        <ProfileScreen
-          user={user}
-          points={points}
-          reportCount={reportCount}
-          onOpenLeaderboard={() => setShowLeaderboard(true)}
-          onOpenAccount={() => setShowAccount(true)}
-        />
-      )}
+        {tab === "profile" && (
+          <ProfileScreen
+            user={user}
+            points={points}
+            reportCount={reportCount}
+            onOpenLeaderboard={() => setShowLeaderboard(true)}
+            onOpenAccount={() => setShowAccount(true)}
+          />
+        )}
+      </Suspense>
 
+      <Suspense fallback={null}>
       {showAccount && (
         <AccountMenu
           user={user}
@@ -221,6 +222,7 @@ export default function App() {
       {showLeaderboard && (
         <Leaderboard userId={user.uid} onClose={() => setShowLeaderboard(false)} />
       )}
+      </Suspense>
     </AppShell>
   )
 }

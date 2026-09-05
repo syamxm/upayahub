@@ -1,5 +1,5 @@
 import { collection, getDocs } from "firebase/firestore"
-import { db } from "./firebase"
+import { db } from "./db"
 
 export async function loadLeaderboard() {
   const [users, reports, votes] = await Promise.all([
