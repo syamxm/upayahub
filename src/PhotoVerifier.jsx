@@ -33,12 +33,17 @@ export default function PhotoVerifier({ location, userId, onReported }) {
 
   return (
     <div className="border-t border-slate-200 pt-3 space-y-2">
-      <input type="file" accept="image/*" onChange={handleFile} className="text-sm" />
+      <input
+        type="file"
+        accept="image/*"
+        onChange={handleFile}
+        className="w-full text-sm text-slate-500 file:mr-3 file:rounded-full file:border-0 file:bg-emerald-50 file:px-4 file:py-2 file:font-semibold file:text-emerald-700"
+      />
       {status && <p className="text-sm text-slate-500">{status}</p>}
       {result && (
         <>
           {result.looksSynthetic && (
-            <p className="text-sm bg-amber-100 text-amber-900 rounded px-3 py-2">
+            <p className="rounded-2xl bg-amber-100 px-3 py-2 text-sm text-amber-900">
               Possibly AI generated ({Math.round(result.syntheticConfidence * 100)}%) —{" "}
               {result.syntheticReason}
             </p>
@@ -55,7 +60,7 @@ export default function PhotoVerifier({ location, userId, onReported }) {
           </dl>
           <button
             onClick={handleSubmit}
-            className="w-full py-2 rounded bg-emerald-600 text-white text-sm font-medium"
+            className="w-full rounded-full bg-emerald-600 py-2.5 text-sm font-semibold text-white shadow-sm"
           >
             Submit report
           </button>

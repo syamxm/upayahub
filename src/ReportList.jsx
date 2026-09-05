@@ -45,7 +45,7 @@ export default function ReportList({ locationId, userId, refreshKey, onConfirmed
         const voted = report.voters.includes(userId)
         const isOwn = report.reporterId === userId
         return (
-          <li key={report.id} className="border border-slate-200 rounded-lg p-2.5 space-y-1.5">
+          <li key={report.id} className="space-y-1.5 rounded-2xl border border-slate-200 p-3">
             <div className="flex items-center justify-between text-xs text-slate-500">
               <span>{report.featureType.replace("_", " ")} · {report.condition}</span>
               <span>{timeAgo(report.createdAt)}</span>
@@ -67,7 +67,7 @@ export default function ReportList({ locationId, userId, refreshKey, onConfirmed
               <button
                 onClick={() => vote(report, 1)}
                 disabled={voted || isOwn}
-                className="flex items-center gap-1 text-xs px-2 py-1 rounded border border-slate-200 text-emerald-700 disabled:opacity-40"
+                className="flex items-center gap-1 rounded-full border border-slate-200 px-2.5 py-1 text-xs font-semibold text-emerald-700 disabled:opacity-40"
               >
                 <ThumbsUp size={13} />
                 {report.confirmed}
@@ -75,7 +75,7 @@ export default function ReportList({ locationId, userId, refreshKey, onConfirmed
               <button
                 onClick={() => vote(report, -1)}
                 disabled={voted || isOwn}
-                className="flex items-center gap-1 text-xs px-2 py-1 rounded border border-slate-200 text-red-700 disabled:opacity-40"
+                className="flex items-center gap-1 rounded-full border border-slate-200 px-2.5 py-1 text-xs font-semibold text-red-700 disabled:opacity-40"
               >
                 <ThumbsDown size={13} />
                 {report.disputed}

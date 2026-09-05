@@ -15,7 +15,7 @@ export default function SignIn() {
       </p>
       <button
         onClick={() => signInWithPopup(auth, new GoogleAuthProvider())}
-        className="px-5 py-2.5 rounded-lg bg-emerald-600 text-white font-medium shadow"
+        className="rounded-full bg-emerald-600 px-6 py-3 font-semibold text-white shadow-lg shadow-emerald-200"
       >
         Continue with Google
       </button>

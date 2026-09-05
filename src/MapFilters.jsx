@@ -11,7 +11,7 @@ export default function MapFilters({ active, onToggle, shown, total }) {
               key={key}
               onClick={() => onToggle(key)}
               aria-pressed={on}
-              className={`whitespace-nowrap rounded-full border px-3 py-1.5 text-sm font-medium ${
+              className={`whitespace-nowrap rounded-full border px-3.5 py-1.5 text-sm font-semibold transition-colors ${
                 on
                   ? "border-emerald-600 bg-emerald-600 text-white"
                   : "border-slate-300 text-slate-700"
