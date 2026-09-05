@@ -1,5 +1,15 @@
-import { collection, query, where, getDocs, doc, setDoc, serverTimestamp } from "firebase/firestore"
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  doc,
+  setDoc,
+  updateDoc,
+  serverTimestamp,
+} from "firebase/firestore"
 import { db } from "./firebase"
+import { confirmationsRequired } from "./conditions"
 
 export function voteId(reportId, userId) {
   return `${reportId}_${userId}`
@@ -38,11 +48,29 @@ export async function loadReports(locationId) {
   })
 }
 
-export async function castVote(reportId, userId, value) {
-  await setDoc(doc(db, "votes", voteId(reportId, userId)), {
-    reportId,
+export async function castVote(report, userId, value) {
+  await setDoc(doc(db, "votes", voteId(report.id, userId)), {
+    reportId: report.id,
     voterId: userId,
     value,
     createdAt: serverTimestamp(),
   })
+
+  if (value !== 1 || !report.field || report.needsReview) return null
+
+  const confirming = await getDocs(
+    query(collection(db, "votes"), where("reportId", "==", report.id), where("value", "==", 1))
+  )
+  const backers = confirming.size + 1
+  if (backers < confirmationsRequired) return null
+
+  await updateDoc(doc(db, "locations", report.locationId), {
+    [report.field]: {
+      condition: report.condition,
+      confirmations: backers,
+      lastVerified: serverTimestamp(),
+    },
+  })
+
+  return { field: report.field, condition: report.condition, confirmations: backers }
 }

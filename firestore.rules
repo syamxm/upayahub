@@ -11,21 +11,24 @@ service cloud.firestore {
       return signedIn() && request.auth.uid == userId;
     }
 
-    function conditionsValid(data, fields) {
-      return data.diff(resource.data).affectedKeys().hasOnly(fields)
-        && data.ramp in ['usable', 'damaged', 'blocked', 'unclear', 'none']
-        && data.elevator in ['usable', 'damaged', 'blocked', 'unclear', 'none']
-        && data.tactilePaving in ['usable', 'damaged', 'blocked', 'unclear', 'none']
-        && data.accessibleToilet in ['usable', 'damaged', 'blocked', 'unclear', 'none'];
+    function changed() {
+      return request.resource.data.diff(resource.data).affectedKeys();
+    }
+
+    function validFeature(feature) {
+      return feature.condition in ['usable', 'damaged', 'blocked', 'unclear', 'none']
+        && feature.confirmations is int
+        && feature.confirmations > 0;
     }
 
     match /locations/{locationId} {
       allow read: if signedIn();
       allow update: if signedIn()
-        && conditionsValid(
-             request.resource.data,
-             ['ramp', 'elevator', 'tactilePaving', 'accessibleToilet']
-           );
+        && changed().hasOnly(['ramp', 'elevator', 'tactilePaving', 'accessibleToilet'])
+        && (!changed().hasAny(['ramp']) || validFeature(request.resource.data.ramp))
+        && (!changed().hasAny(['elevator']) || validFeature(request.resource.data.elevator))
+        && (!changed().hasAny(['tactilePaving']) || validFeature(request.resource.data.tactilePaving))
+        && (!changed().hasAny(['accessibleToilet']) || validFeature(request.resource.data.accessibleToilet));
       allow create, delete: if false;
     }
 
