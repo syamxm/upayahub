@@ -58,7 +58,7 @@ export default function ReportList({ locationId, userId, refreshKey, onConfirmed
       ),
     }))
     const promoted = await castVote(report, userId, value)
-    if (promoted) onConfirmed(promoted)
+    if (promoted) onConfirmed(promoted, locationId)
   }
 
   if (reports === null) {
