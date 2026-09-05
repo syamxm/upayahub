@@ -16,7 +16,7 @@ const features = [
   ["accessibleToilet", "Accessible toilet"],
 ]
 
-export default function LocationDetails({ location, onClose }) {
+export default function LocationDetails({ location, onClose, onReported }) {
   return (
     <div className="absolute inset-x-4 bottom-4 z-10 bg-white rounded-lg shadow-lg p-4 space-y-3">
       <div className="flex items-start justify-between">
@@ -38,7 +38,7 @@ export default function LocationDetails({ location, onClose }) {
           </li>
         ))}
       </ul>
-      <PhotoVerifier />
+      <PhotoVerifier location={location} onReported={onReported} />
     </div>
   )
 }
