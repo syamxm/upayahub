@@ -1,32 +1,23 @@
 import { trackedFeatures, featureLabels } from "./conditions"
+import Chip from "./ui/Chip"
 
 export default function MapFilters({ active, onToggle, shown, total }) {
   return (
-    <div className="bg-white border-b border-slate-200">
-      <div className="flex gap-2 overflow-x-auto px-4 pt-2">
-        {trackedFeatures.map((key) => {
-          const on = active.includes(key)
-          return (
-            <button
-              key={key}
-              onClick={() => onToggle(key)}
-              aria-pressed={on}
-              className={`whitespace-nowrap rounded-full border px-3.5 py-1.5 text-sm font-semibold transition-colors ${
-                on
-                  ? "border-emerald-600 bg-emerald-600 text-white"
-                  : "border-slate-300 text-slate-700"
-              }`}
-            >
+    <div className="shrink-0 border-b border-border bg-card">
+      <div className="mx-auto w-full max-w-5xl px-4">
+        <div className="flex gap-2 overflow-x-auto pt-2.5">
+          {trackedFeatures.map((key) => (
+            <Chip key={key} pressed={active.includes(key)} onClick={() => onToggle(key)}>
               {featureLabels[key]}
-            </button>
-          )
-        })}
+            </Chip>
+          ))}
+        </div>
+        <p className="py-2 text-micro text-muted-foreground" aria-live="polite">
+          {active.length === 0
+            ? `Showing all ${total} places`
+            : `Showing ${shown} of ${total} places`}
+        </p>
       </div>
-      <p className="px-4 py-1.5 text-xs text-slate-500" aria-live="polite">
-        {active.length === 0
-          ? `Showing all ${total} places`
-          : `Showing ${shown} of ${total} places`}
-      </p>
     </div>
   )
 }

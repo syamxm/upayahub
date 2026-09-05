@@ -1,18 +1,26 @@
 import { useEffect, useState } from "react"
 import { collection, getDocs, doc, getDoc, setDoc, deleteField } from "firebase/firestore"
 import { onAuthStateChanged } from "firebase/auth"
-import { Trophy } from "lucide-react"
+import { AlertCircle, Map, User, Users } from "lucide-react"
 import { db, auth } from "./firebase"
-import AccessibilityMap from "./AccessibilityMap"
-import LocationDetails from "./LocationDetails"
-import MapLegend from "./MapLegend"
 import SignIn from "./SignIn"
-import Avatar from "./Avatar"
 import Leaderboard from "./Leaderboard"
 import AccountMenu from "./AccountMenu"
-import MapFilters from "./MapFilters"
+import AppShell from "./ui/AppShell"
+import MainNav from "./ui/MainNav"
+import Spinner from "./ui/Spinner"
+import ExploreScreen from "./screens/ExploreScreen"
+import ProfileScreen from "./screens/ProfileScreen"
+import ComingSoonScreen from "./screens/ComingSoonScreen"
 import { pointsPerReport } from "./submitReport"
 import { matchesFilters } from "./conditions"
+
+const tabs = [
+  { id: "explore", label: "Explore", icon: Map },
+  { id: "report", label: "Report", icon: AlertCircle, raised: true },
+  { id: "community", label: "Community", icon: Users },
+  { id: "profile", label: "Profile", icon: User },
+]
 
 export default function App() {
   const [locations, setLocations] = useState([])
@@ -25,6 +33,7 @@ export default function App() {
   const [checkingAuth, setCheckingAuth] = useState(true)
   const [filters, setFilters] = useState([])
   const [showAccount, setShowAccount] = useState(false)
+  const [tab, setTab] = useState("explore")
 
   useEffect(() => {
     if (!user) return
@@ -70,69 +79,83 @@ export default function App() {
     )
   }
 
-  if (checkingAuth) return <div className="h-screen bg-slate-50" />
-  if (!user) return <SignIn />
-
-  const selected = locations.find((location) => location.id === selectedId)
-  const visible = locations.filter((location) => matchesFilters(location, filters))
-
   function toggleFilter(key) {
     setFilters((current) =>
       current.includes(key) ? current.filter((item) => item !== key) : [...current, key]
     )
   }
 
+  if (checkingAuth) {
+    return (
+      <div className="grid h-dvh place-items-center bg-background">
+        <Spinner label="Checking your sign-in" size={28} className="text-muted-foreground" />
+      </div>
+    )
+  }
+
+  if (!user) return <SignIn />
+
+  const selected = locations.find((location) => location.id === selectedId)
+  const visible = locations.filter((location) => matchesFilters(location, filters))
+
   return (
-    <div className="h-screen flex flex-col">
-      <header className="p-4 bg-emerald-600 text-white flex items-center justify-between gap-4">
-        <div className="min-w-0">
-          <h1 className="text-xl font-bold">UpayaHub</h1>
-          <p className="text-sm text-emerald-50">Know Before You Go.</p>
-        </div>
-        <div className="flex items-center gap-3 shrink-0">
-          <button
-            onClick={() => setShowLeaderboard(true)}
-            aria-label="Open leaderboard"
-            className="flex items-center gap-1.5 bg-emerald-700 rounded-full px-3 py-1.5 shrink-0"
-          >
-            <Trophy size={16} />
-            <span className="font-semibold text-sm">{points}</span>
-          </button>
-          <button onClick={() => setShowAccount(true)} aria-label="Open account menu">
-            <Avatar user={user} />
-          </button>
-        </div>
-      </header>
-      <MapFilters
-        active={filters}
-        onToggle={toggleFilter}
-        shown={visible.length}
-        total={locations.length}
-      />
-      <main className="flex-1 relative">
-        <AccessibilityMap locations={visible} onSelect={(location) => setSelectedId(location.id)} />
-        <MapLegend />
-        {showAccount && (
-          <AccountMenu
-            user={user}
-            points={points}
-            reportCount={reportCount}
-            onClose={() => setShowAccount(false)}
-          />
-        )}
-        {showLeaderboard && (
-          <Leaderboard userId={user.uid} onClose={() => setShowLeaderboard(false)} />
-        )}
-        {selected && (
-          <LocationDetails
-            location={selected}
-            userId={user.uid}
-            reportKey={reportKey}
-            onClose={() => setSelectedId(null)}
-            onReported={applyReport}
-          />
-        )}
-      </main>
-    </div>
+    <AppShell nav={<MainNav items={tabs} active={tab} onChange={setTab} />}>
+      {tab === "explore" && (
+        <ExploreScreen
+          locations={locations}
+          visible={visible}
+          filters={filters}
+          onToggleFilter={toggleFilter}
+          selected={selected}
+          onSelect={(location) => setSelectedId(location.id)}
+          onClearSelection={() => setSelectedId(null)}
+          userId={user.uid}
+          reportKey={reportKey}
+          onReported={applyReport}
+        />
+      )}
+
+      {tab === "report" && (
+        <ComingSoonScreen
+          title="Report a barrier"
+          subtitle="Photo-verified accessibility reports"
+          icon={AlertCircle}
+          phase="Phase 4"
+          available="You can already file a report today: open Explore, tap a place on the map, then add a photo at the bottom of its details panel."
+        />
+      )}
+
+      {tab === "community" && (
+        <ComingSoonScreen
+          title="Community"
+          subtitle="Recent reports from across the city"
+          icon={Users}
+          phase="Phase 4"
+          available="Reports and their confirm or dispute votes are live today inside each place on the Explore map."
+        />
+      )}
+
+      {tab === "profile" && (
+        <ProfileScreen
+          user={user}
+          points={points}
+          reportCount={reportCount}
+          onOpenLeaderboard={() => setShowLeaderboard(true)}
+          onOpenAccount={() => setShowAccount(true)}
+        />
+      )}
+
+      {showAccount && (
+        <AccountMenu
+          user={user}
+          points={points}
+          reportCount={reportCount}
+          onClose={() => setShowAccount(false)}
+        />
+      )}
+      {showLeaderboard && (
+        <Leaderboard userId={user.uid} onClose={() => setShowLeaderboard(false)} />
+      )}
+    </AppShell>
   )
 }

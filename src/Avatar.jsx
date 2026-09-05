@@ -6,7 +6,7 @@ export default function Avatar({ user }) {
 
   if (!user.photoURL || failed) {
     return (
-      <div className="w-9 h-9 shrink-0 rounded-full bg-emerald-800 grid place-items-center text-sm font-semibold">
+      <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-border bg-card text-sm font-semibold text-primary">
         {initial}
       </div>
     )
@@ -18,7 +18,7 @@ export default function Avatar({ user }) {
       alt=""
       referrerPolicy="no-referrer"
       onError={() => setFailed(true)}
-      className="w-9 h-9 shrink-0 rounded-full object-cover"
+      className="h-9 w-9 shrink-0 rounded-full object-cover"
     />
   )
 }
