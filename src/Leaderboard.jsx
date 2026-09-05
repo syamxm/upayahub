@@ -1,62 +1,84 @@
 import { useEffect, useState } from "react"
-import { X, Award } from "lucide-react"
+import { Award } from "lucide-react"
+import Modal from "./ui/Modal"
 import { loadLeaderboard } from "./leaderboard"
+
+function Rank({ position }) {
+  return (
+    <span className="w-6 shrink-0 text-center text-sm font-bold text-muted-foreground">
+      {position}
+    </span>
+  )
+}
 
 export default function Leaderboard({ userId, onClose }) {
   const [entries, setEntries] = useState(null)
 
   useEffect(() => {
-    loadLeaderboard().then(setEntries)
+    let active = true
+    loadLeaderboard().then((loaded) => {
+      if (active) setEntries(loaded)
+    })
+    return () => {
+      active = false
+    }
   }, [])
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-[#0f1923]/50 p-4">
-      <div className="flex max-h-[80%] w-full max-w-md flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
-        <div className="flex items-center justify-between p-4 border-b border-slate-200">
-          <h2 className="font-bold text-slate-900">Top contributors</h2>
-          <button onClick={onClose} aria-label="Close leaderboard" className="text-slate-400">
-            <X size={20} />
-          </button>
+    <Modal title="Top contributors" onClose={onClose}>
+      {entries === null ? (
+        <div className="space-y-2 p-4" aria-busy="true">
+          <span className="sr-only">Loading contributors</span>
+          {[0, 1, 2].map((row) => (
+            <div key={row} className="h-14 animate-pulse rounded-control bg-muted" />
+          ))}
         </div>
-        {entries === null ? (
-          <p className="p-4 text-sm text-slate-400">Loading...</p>
-        ) : (
-          <ol className="overflow-y-auto divide-y divide-slate-100">
-            {entries.map((entry, index) => (
+      ) : entries.length === 0 ? (
+        <p className="p-6 text-center text-sm text-muted-foreground">
+          No contributors yet. Be the first to report a place.
+        </p>
+      ) : (
+        <ol className="divide-y divide-border">
+          {entries.map((entry, index) => {
+            const isYou = entry.id === userId
+            return (
               <li
                 key={entry.id}
-                className={`flex items-center gap-3 p-3 ${entry.id === userId ? "bg-emerald-50" : ""}`}
+                className={`flex items-center gap-3 px-4 py-3 ${isYou ? "bg-accent" : ""}`}
               >
-                <span className="w-5 text-sm font-semibold text-slate-400">{index + 1}</span>
+                <Rank position={index + 1} />
                 {entry.photo ? (
                   <img
                     src={entry.photo}
                     alt=""
                     referrerPolicy="no-referrer"
-                    className="w-9 h-9 shrink-0 rounded-full object-cover"
+                    className="h-9 w-9 shrink-0 rounded-full object-cover"
                   />
                 ) : (
-                  <div className="w-9 h-9 shrink-0 rounded-full bg-slate-200 grid place-items-center text-sm font-semibold text-slate-600">
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-border bg-card text-sm font-semibold text-primary">
                     {entry.name.charAt(0).toUpperCase()}
-                  </div>
+                  </span>
                 )}
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-slate-900 truncate">{entry.name}</p>
-                  <p className="text-xs text-slate-500">
-                    {entry.reportCount} reports
+                  <p className="truncate text-sm font-medium">
+                    {entry.name}
+                    {isYou && <span className="ml-1 text-primary">(you)</span>}
+                  </p>
+                  <p className="text-micro text-muted-foreground">
+                    {entry.reportCount} {entry.reportCount === 1 ? "report" : "reports"}
                     {entry.credibility !== null &&
-                      ` · ${entry.credibility}% confirmed by ${entry.votesReceived}`}
+                      `, ${entry.credibility}% confirmed by ${entry.votesReceived}`}
                   </p>
                 </div>
-                <span className="flex items-center gap-1 text-sm font-semibold text-emerald-700">
-                  <Award size={14} />
+                <span className="flex shrink-0 items-center gap-1 text-sm font-semibold text-primary">
+                  <Award size={15} aria-hidden="true" />
                   {entry.points}
                 </span>
               </li>
-            ))}
-          </ol>
-        )}
-      </div>
-    </div>
+            )
+          })}
+        </ol>
+      )}
+    </Modal>
   )
 }

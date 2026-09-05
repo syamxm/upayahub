@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react"
 import { ThumbsUp, ThumbsDown, ShieldAlert, Clock } from "lucide-react"
+import Pill from "./ui/Pill"
+import { conditionLabels, conditionTones } from "./conditions"
 import { loadReports, castVote } from "./votes"
 
 function timeAgo(createdAt) {
@@ -11,16 +13,40 @@ function timeAgo(createdAt) {
   return `${Math.round(minutes / 1440)}d ago`
 }
 
+function VoteButton({ icon: Icon, count, label, tone, ...props }) {
+  return (
+    <button
+      type="button"
+      className="tap inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-micro font-semibold transition-colors hover:bg-muted disabled:pointer-events-none disabled:opacity-40"
+      style={{ color: `var(--tone-${tone}-text)` }}
+      {...props}
+    >
+      <Icon size={14} aria-hidden="true" />
+      <span aria-hidden="true">{count}</span>
+      <span className="sr-only">{label}</span>
+    </button>
+  )
+}
+
 export default function ReportList({ locationId, userId, refreshKey, onConfirmed }) {
-  const [reports, setReports] = useState([])
+  const key = `${locationId}:${refreshKey}`
+  const [loaded, setLoaded] = useState({ key: null, items: [] })
+  const reports = loaded.key === key ? loaded.items : null
 
   useEffect(() => {
-    loadReports(locationId).then(setReports)
-  }, [locationId, refreshKey])
+    let active = true
+    loadReports(locationId).then((items) => {
+      if (active) setLoaded({ key, items })
+    })
+    return () => {
+      active = false
+    }
+  }, [locationId, key])
 
   async function vote(report, value) {
-    setReports((current) =>
-      current.map((entry) =>
+    setLoaded((current) => ({
+      ...current,
+      items: current.items.map((entry) =>
         entry.id === report.id
           ? {
               ...entry,
@@ -29,62 +55,90 @@ export default function ReportList({ locationId, userId, refreshKey, onConfirmed
               disputed: entry.disputed + (value === -1 ? 1 : 0),
             }
           : entry
-      )
-    )
+      ),
+    }))
     const promoted = await castVote(report, userId, value)
     if (promoted) onConfirmed(promoted)
   }
 
+  if (reports === null) {
+    return (
+      <div className="space-y-2" aria-busy="true">
+        <span className="sr-only">Loading community reports</span>
+        {[0, 1].map((row) => (
+          <div key={row} className="h-20 animate-pulse rounded-control bg-muted" />
+        ))}
+      </div>
+    )
+  }
+
   if (reports.length === 0) {
-    return <p className="text-sm text-slate-400">No community reports yet.</p>
+    return (
+      <p className="rounded-control border border-dashed border-border px-3 py-4 text-center text-micro text-muted-foreground">
+        No community reports yet. Add a photo below to be the first.
+      </p>
+    )
   }
 
   return (
-    <ul className="space-y-2 max-h-48 overflow-y-auto">
-      {reports.map((report) => {
-        const voted = report.voters.includes(userId)
-        const isOwn = report.reporterId === userId
-        return (
-          <li key={report.id} className="space-y-1.5 rounded-2xl border border-slate-200 p-3">
-            <div className="flex items-center justify-between text-xs text-slate-500">
-              <span>{report.featureType.replace("_", " ")} · {report.condition}</span>
-              <span>{timeAgo(report.createdAt)}</span>
-            </div>
-            <p className="text-sm text-slate-700">{report.summary}</p>
-            {report.pending && (
-              <p className="flex items-center gap-1.5 text-xs text-slate-500">
-                <Clock size={13} />
-                Awaiting confirmation before this updates the map
-              </p>
-            )}
-            {report.needsReview && (
-              <p className="flex items-center gap-1.5 text-xs text-amber-700">
-                <ShieldAlert size={13} />
-                Flagged for review
-              </p>
-            )}
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => vote(report, 1)}
-                disabled={voted || isOwn}
-                className="flex items-center gap-1 rounded-full border border-slate-200 px-2.5 py-1 text-xs font-semibold text-emerald-700 disabled:opacity-40"
-              >
-                <ThumbsUp size={13} />
-                {report.confirmed}
-              </button>
-              <button
-                onClick={() => vote(report, -1)}
-                disabled={voted || isOwn}
-                className="flex items-center gap-1 rounded-full border border-slate-200 px-2.5 py-1 text-xs font-semibold text-red-700 disabled:opacity-40"
-              >
-                <ThumbsDown size={13} />
-                {report.disputed}
-              </button>
-              {isOwn && <span className="text-xs text-slate-400">your report</span>}
-            </div>
-          </li>
-        )
-      })}
-    </ul>
+    <div className="space-y-2">
+      <h3 className="text-sm font-semibold">Community reports</h3>
+      <ul className="max-h-56 space-y-2 overflow-y-auto">
+        {reports.map((report) => {
+          const voted = report.voters.includes(userId)
+          const isOwn = report.reporterId === userId
+          return (
+            <li key={report.id} className="space-y-2 rounded-control border border-border p-3">
+              <div className="flex items-start justify-between gap-2">
+                <Pill tone={conditionTones[report.condition]}>
+                  {report.featureType.replace(/_/g, " ")}: {conditionLabels[report.condition]}
+                </Pill>
+                <span className="shrink-0 text-micro text-muted-foreground">
+                  {timeAgo(report.createdAt)}
+                </span>
+              </div>
+
+              <p className="text-sm">{report.summary}</p>
+
+              {report.pending && (
+                <p className="flex items-center gap-1.5 text-micro text-muted-foreground">
+                  <Clock size={13} aria-hidden="true" />
+                  Waiting for a second person to confirm before the map updates
+                </p>
+              )}
+              {report.needsReview && (
+                <p
+                  className="flex items-center gap-1.5 text-micro"
+                  style={{ color: "var(--tone-warning-text)" }}
+                >
+                  <ShieldAlert size={13} aria-hidden="true" />
+                  Flagged for review
+                </p>
+              )}
+
+              <div className="flex items-center gap-2">
+                <VoteButton
+                  icon={ThumbsUp}
+                  tone="success"
+                  count={report.confirmed}
+                  label={`Confirm this report. ${report.confirmed} people agree`}
+                  onClick={() => vote(report, 1)}
+                  disabled={voted || isOwn}
+                />
+                <VoteButton
+                  icon={ThumbsDown}
+                  tone="danger"
+                  count={report.disputed}
+                  label={`Dispute this report. ${report.disputed} people disagree`}
+                  onClick={() => vote(report, -1)}
+                  disabled={voted || isOwn}
+                />
+                {isOwn && <span className="text-micro text-muted-foreground">Your report</span>}
+              </div>
+            </li>
+          )
+        })}
+      </ul>
+    </div>
   )
 }
