@@ -69,6 +69,7 @@ export async function castVote(report, userId, value) {
       condition: report.condition,
       confirmations: backers,
       lastVerified: serverTimestamp(),
+      sourceReportId: report.id,
     },
   })
 

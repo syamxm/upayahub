@@ -45,7 +45,12 @@ export async function submitReport(location, result, userId) {
   }
 
   await updateDoc(doc(db, "locations", location.id), {
-    [field]: { condition: result.condition, confirmations: 1, lastVerified: serverTimestamp() },
+    [field]: {
+      condition: result.condition,
+      confirmations: 1,
+      lastVerified: serverTimestamp(),
+      sourceReportId: report.id,
+    },
   })
 
   return { reportId: report.id, applied: true, field, condition: result.condition }
