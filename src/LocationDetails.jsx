@@ -1,7 +1,9 @@
-import { X, ShieldCheck, AlertTriangle } from "lucide-react"
+import { X, ShieldCheck, AlertTriangle, FileDown } from "lucide-react"
 import PhotoVerifier from "./PhotoVerifier"
 import ReportList from "./ReportList"
 import { conditionColors, trackedFeatures, featureState, describeAge } from "./conditions"
+import { loadReports } from "./votes"
+import { reportsToCsv, downloadCsv, csvFilename } from "./exportReport"
 
 const labels = {
   ramp: "Ramp",
@@ -33,6 +35,11 @@ function Provenance({ state }) {
 }
 
 export default function LocationDetails({ location, userId, reportKey, onClose, onReported }) {
+  async function exportCsv() {
+    const reports = await loadReports(location.id)
+    downloadCsv(csvFilename(location), reportsToCsv(location, reports))
+  }
+
   return (
     <div className="absolute inset-x-3 bottom-3 z-10 max-h-[75%] overflow-y-auto rounded-3xl bg-white p-5 shadow-xl ring-1 ring-slate-900/5 space-y-4 md:inset-y-3 md:left-auto md:right-3 md:w-96 md:max-h-[calc(100%-1.5rem)]">
       <div className="flex items-start justify-between">
@@ -66,6 +73,14 @@ export default function LocationDetails({ location, userId, reportKey, onClose, 
       </ul>
 
       <ReportList locationId={location.id} userId={userId} refreshKey={reportKey} onConfirmed={onReported} />
+
+      <button
+        onClick={exportCsv}
+        className="flex w-full items-center justify-center gap-2 rounded-full border border-slate-300 py-2.5 text-sm font-semibold text-slate-700"
+      >
+        <FileDown size={15} />
+        Export reports for council (CSV)
+      </button>
       <PhotoVerifier location={location} userId={userId} onReported={onReported} />
     </div>
   )
