@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react"
 import { collection, getDocs, doc, getDoc, setDoc } from "firebase/firestore"
 import { onAuthStateChanged } from "firebase/auth"
-import { Award } from "lucide-react"
+import { Trophy } from "lucide-react"
 import { db, auth } from "./firebase"
 import AccessibilityMap from "./AccessibilityMap"
 import LocationDetails from "./LocationDetails"
 import MapLegend from "./MapLegend"
 import SignIn from "./SignIn"
 import Avatar from "./Avatar"
+import Leaderboard from "./Leaderboard"
 import { pointsPerReport } from "./submitReport"
 
 export default function App() {
@@ -16,6 +17,7 @@ export default function App() {
   const [user, setUser] = useState(null)
   const [points, setPoints] = useState(0)
   const [reportKey, setReportKey] = useState(0)
+  const [showLeaderboard, setShowLeaderboard] = useState(false)
   const [checkingAuth, setCheckingAuth] = useState(true)
 
   useEffect(() => {
@@ -64,16 +66,23 @@ export default function App() {
           <p className="text-sm text-emerald-50">Know Before You Go.</p>
         </div>
         <div className="flex items-center gap-3 shrink-0">
-          <div className="flex items-center gap-1.5 bg-emerald-700 rounded-full px-3 py-1.5 shrink-0">
-            <Award size={16} />
+          <button
+            onClick={() => setShowLeaderboard(true)}
+            aria-label="Open leaderboard"
+            className="flex items-center gap-1.5 bg-emerald-700 rounded-full px-3 py-1.5 shrink-0"
+          >
+            <Trophy size={16} />
             <span className="font-semibold text-sm">{points}</span>
-          </div>
+          </button>
           <Avatar user={user} />
         </div>
       </header>
       <main className="flex-1 relative">
         <AccessibilityMap locations={locations} onSelect={(location) => setSelectedId(location.id)} />
         <MapLegend />
+        {showLeaderboard && (
+          <Leaderboard userId={user.uid} onClose={() => setShowLeaderboard(false)} />
+        )}
         {selected && (
           <LocationDetails
             location={selected}
