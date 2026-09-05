@@ -1,4 +1,4 @@
-import { collection, addDoc, doc, updateDoc, setDoc, increment, serverTimestamp } from "firebase/firestore"
+import { collection, addDoc, doc, updateDoc, increment, serverTimestamp } from "firebase/firestore"
 import { auth } from "./firebase"
 import { db } from "./db"
 import { featureState, isUpgrade, pointsPerReport } from "./conditions"
@@ -36,11 +36,11 @@ export async function submitReport(location, result, userId) {
     createdAt: serverTimestamp(),
   })
 
-  await setDoc(
-    doc(db, "users", userId),
-    { points: increment(pointsPerReport), reportCount: increment(1) },
-    { merge: true }
-  )
+  await updateDoc(doc(db, "users", userId), {
+    points: increment(pointsPerReport),
+    reportCount: increment(1),
+    lastReportId: report.id,
+  })
 
   if (!field || needsReview || heldForConfirmation) {
     return { reportId: report.id, applied: false, pending: heldForConfirmation }

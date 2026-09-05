@@ -24,7 +24,8 @@ service cloud.firestore {
     }
 
     function validFeature(feature, locationId, field) {
-      return feature.condition in ['usable', 'damaged', 'blocked', 'unclear', 'none']
+      return feature.keys().hasOnly(['condition', 'confirmations', 'lastVerified', 'sourceReportId'])
+        && feature.condition in ['usable', 'damaged', 'blocked', 'unclear', 'none']
         && feature.confirmations is int
         && feature.confirmations > 0
         && feature.lastVerified == request.time
@@ -47,6 +48,42 @@ service cloud.firestore {
       allow create, delete: if false;
     }
 
+    function validReport() {
+      let report = request.resource.data;
+      return report.keys().hasOnly([
+          'locationId', 'locationName', 'reporterId', 'reporterName', 'reporterPhoto',
+          'featureType', 'field', 'condition', 'confidence', 'summary',
+          'looksSynthetic', 'syntheticConfidence', 'needsReview', 'pending', 'createdAt'
+        ])
+        && report.keys().hasAll([
+          'locationId', 'reporterId', 'featureType', 'field', 'condition',
+          'confidence', 'looksSynthetic', 'needsReview', 'pending', 'createdAt'
+        ])
+        && report.reporterId == request.auth.uid
+        && report.createdAt == request.time
+        && report.locationId is string
+        && exists(/databases/$(database)/documents/locations/$(report.locationId))
+        && report.featureType in ['ramp', 'elevator', 'tactile_paving', 'accessible_toilet', 'parking', 'none']
+        && (report.field == null
+          || report.field in ['ramp', 'elevator', 'tactilePaving', 'accessibleToilet'])
+        && report.condition in ['usable', 'damaged', 'blocked', 'unclear']
+        && report.confidence is number
+        && report.confidence >= 0 && report.confidence <= 1
+        && report.looksSynthetic is bool
+        && report.needsReview is bool
+        && report.pending is bool
+        && report.needsReview == (report.looksSynthetic || report.confidence < 0.6)
+        && (!('summary' in report)
+          || (report.summary is string && report.summary.size() <= 300))
+        && (!('locationName' in report)
+          || (report.locationName is string && report.locationName.size() <= 200))
+        && (!('syntheticConfidence' in report) || report.syntheticConfidence is number)
+        && (report.reporterName == null
+          || (report.reporterName is string && report.reporterName.size() <= 100))
+        && (report.reporterPhoto == null
+          || (report.reporterPhoto is string && report.reporterPhoto.size() <= 500));
+    }
+
     function redactsOwnIdentity() {
       return resource.data.reporterId == request.auth.uid
         && changed().hasOnly(['reporterName', 'reporterPhoto'])
@@ -56,15 +93,7 @@ service cloud.firestore {
 
     match /reports/{reportId} {
       allow read: if signedIn();
-      allow create: if signedIn()
-        && request.resource.data.reporterId == request.auth.uid
-        && request.resource.data.createdAt == request.time
-        && request.resource.data.condition in ['usable', 'damaged', 'blocked', 'unclear']
-        && (request.resource.data.reporterName == null
-          || (request.resource.data.reporterName is string
-            && request.resource.data.reporterName.size() <= 100))
-        && (request.resource.data.reporterPhoto == null
-          || request.resource.data.reporterPhoto is string);
+      allow create: if signedIn() && validReport();
       allow update: if signedIn() && redactsOwnIdentity();
       allow delete: if false;
     }
@@ -73,19 +102,57 @@ service cloud.firestore {
       allow read: if signedIn();
       allow create: if signedIn()
         && voteId == request.resource.data.reportId + '_' + request.auth.uid
+        && request.resource.data.keys().hasOnly(['reportId', 'voterId', 'value', 'createdAt'])
         && request.resource.data.voterId == request.auth.uid
         && request.resource.data.createdAt == request.time
-        && request.resource.data.value in [1, -1];
+        && request.resource.data.value in [1, -1]
+        && exists(/databases/$(database)/documents/reports/$(request.resource.data.reportId))
+        && get(/databases/$(database)/documents/reports/$(request.resource.data.reportId))
+             .data.reporterId != request.auth.uid;
       allow update, delete: if false;
+    }
+
+    function validProfileWrite() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['name', 'photo', 'email'])
+        && (!('name' in request.resource.data)
+          || (request.resource.data.name is string && request.resource.data.name.size() <= 100))
+        && (!('photo' in request.resource.data)
+          || (request.resource.data.photo is string && request.resource.data.photo.size() <= 500));
+    }
+
+    function earnsPointsForNewReport(userId) {
+      let next = request.resource.data;
+      let current = resource.data;
+      let source = get(/databases/$(database)/documents/reports/$(next.lastReportId));
+      return next.diff(current).affectedKeys().hasOnly(['points', 'reportCount', 'lastReportId'])
+        && next.points == current.get('points', 0) + 10
+        && next.reportCount == current.get('reportCount', 0) + 1
+        && next.lastReportId is string
+        && next.lastReportId != current.get('lastReportId', '')
+        && source != null
+        && source.data.reporterId == userId;
     }
 
     match /users/{userId} {
       allow read: if signedIn();
       allow create: if isOwner(userId)
-        && request.resource.data.get('points', 0) <= 10;
+        && request.resource.data.keys().hasOnly(['name', 'photo'])
+        && (!('name' in request.resource.data)
+          || (request.resource.data.name is string && request.resource.data.name.size() <= 100))
+        && (!('photo' in request.resource.data)
+          || (request.resource.data.photo is string && request.resource.data.photo.size() <= 500));
       allow update: if isOwner(userId)
-        && request.resource.data.get('points', 0) <= resource.data.get('points', 0) + 10;
+        && (validProfileWrite() || earnsPointsForNewReport(userId));
       allow delete: if isOwner(userId);
+    }
+
+    match /photoCheckLimits/{userId} {
+      allow read, write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
