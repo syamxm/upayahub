@@ -113,7 +113,9 @@ export default function LocationDetails({ location, userId, reportKey, onClose, 
           Export reports for council
         </Button>
 
-        <PhotoVerifier location={location} userId={userId} onReported={onReported} />
+        <div className="border-t border-border pt-4">
+          <PhotoVerifier location={location} userId={userId} onReported={onReported} />
+        </div>
       </div>
     </section>
   )

@@ -11,7 +11,8 @@ import MainNav from "./ui/MainNav"
 import Spinner from "./ui/Spinner"
 import ExploreScreen from "./screens/ExploreScreen"
 import ProfileScreen from "./screens/ProfileScreen"
-import ComingSoonScreen from "./screens/ComingSoonScreen"
+import ReportScreen from "./screens/ReportScreen"
+import CommunityScreen from "./screens/CommunityScreen"
 import { pointsPerReport } from "./submitReport"
 import { matchesFilters } from "./conditions"
 
@@ -34,6 +35,8 @@ export default function App() {
   const [filters, setFilters] = useState([])
   const [showAccount, setShowAccount] = useState(false)
   const [tab, setTab] = useState("explore")
+  const [origin, setOrigin] = useState(null)
+  const [locating, setLocating] = useState(false)
 
   useEffect(() => {
     if (!user) return
@@ -59,13 +62,15 @@ export default function App() {
     })
   }, [])
 
-  function applyReport(update) {
+  function applyReport(update, locationId) {
     setReportKey((current) => current + 1)
     if (update?.reportId) setPoints((current) => current + pointsPerReport)
+    if (update?.reportId) setReportCount((current) => current + 1)
     if (!update?.field) return
+    const target = locationId ?? selectedId
     setLocations((current) =>
       current.map((location) =>
-        location.id === selectedId
+        location.id === target
           ? {
               ...location,
               [update.field]: {
@@ -77,6 +82,24 @@ export default function App() {
           : location
       )
     )
+  }
+
+  function locate() {
+    if (!navigator.geolocation) return
+    setLocating(true)
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setOrigin({ lat: position.coords.latitude, lng: position.coords.longitude })
+        setLocating(false)
+      },
+      () => setLocating(false),
+      { enableHighAccuracy: true, timeout: 10000 }
+    )
+  }
+
+  function openLocation(locationId) {
+    setSelectedId(locationId)
+    setTab("explore")
   }
 
   function toggleFilter(key) {
@@ -112,28 +135,24 @@ export default function App() {
           userId={user.uid}
           reportKey={reportKey}
           onReported={applyReport}
+          origin={origin}
+          onLocate={locate}
+          locating={locating}
         />
       )}
 
       {tab === "report" && (
-        <ComingSoonScreen
-          title="Report a barrier"
-          subtitle="Photo-verified accessibility reports"
-          icon={AlertCircle}
-          phase="Phase 4"
-          available="You can already file a report today: open Explore, tap a place on the map, then add a photo at the bottom of its details panel."
+        <ReportScreen
+          locations={locations}
+          userId={user.uid}
+          onReported={applyReport}
+          origin={origin}
+          onLocate={locate}
+          locating={locating}
         />
       )}
 
-      {tab === "community" && (
-        <ComingSoonScreen
-          title="Community"
-          subtitle="Recent reports from across the city"
-          icon={Users}
-          phase="Phase 4"
-          available="Reports and their confirm or dispute votes are live today inside each place on the Explore map."
-        />
-      )}
+      {tab === "community" && <CommunityScreen onOpenLocation={openLocation} />}
 
       {tab === "profile" && (
         <ProfileScreen

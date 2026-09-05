@@ -50,6 +50,24 @@ export function featureState(location, key) {
   }
 }
 
+const scoreByCondition = { usable: 100, damaged: 50, blocked: 0 }
+
+export function accessibilityScore(location) {
+  const scored = trackedFeatures
+    .map((key) => scoreByCondition[featureState(location, key).condition])
+    .filter((value) => value !== undefined)
+
+  if (scored.length === 0) return null
+  return Math.round(scored.reduce((total, value) => total + value, 0) / scored.length)
+}
+
+export function scoreBand(score) {
+  if (score === null) return "unrated"
+  if (score >= 80) return "good"
+  if (score >= 50) return "mixed"
+  return "poor"
+}
+
 export function isUpgrade(current, next) {
   return severity[next] < severity[current]
 }

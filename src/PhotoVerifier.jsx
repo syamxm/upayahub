@@ -37,7 +37,7 @@ export default function PhotoVerifier({ location, userId, onReported }) {
     setBusy(true)
     try {
       const update = await submitReport(location, result, userId)
-      onReported(update)
+      onReported(update, location.id)
       setResult(null)
       if (update?.applied) setStatus("Report saved and the map is updated.")
       else if (update?.pending)
@@ -54,7 +54,7 @@ export default function PhotoVerifier({ location, userId, onReported }) {
   const confidence = result ? Math.round(result.confidence * 100) : 0
 
   return (
-    <div className="space-y-3 border-t border-border pt-4">
+    <div className="space-y-3">
       <div>
         <h3 className="text-sm font-semibold">Add photo evidence</h3>
         <p className="mt-1 text-micro text-muted-foreground">
