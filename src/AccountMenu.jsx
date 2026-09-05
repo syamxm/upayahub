@@ -26,7 +26,7 @@ export default function AccountMenu({ user, points, reportCount, onClose }) {
   }
 
   return (
-    <div className="absolute inset-0 z-20 grid place-items-center bg-slate-900/40 p-4">
+    <div className="fixed inset-0 z-50 grid place-items-center bg-[#0f1923]/50 p-4">
       <div className="flex w-full max-w-md flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b border-slate-200 p-4">
           <h2 className="font-bold text-slate-900">Your account</h2>

@@ -9,11 +9,12 @@ const entries = [
 
 export default function MapLegend() {
   return (
-    <div className="absolute top-3 right-3 z-10 md:right-auto md:left-3 rounded-2xl bg-white/95 p-3 shadow-lg ring-1 ring-slate-900/5 backdrop-blur-sm space-y-1.5">
+    <div className="absolute right-3 top-3 z-10 space-y-1.5 rounded-card border border-border bg-card/95 p-3 shadow-raised backdrop-blur-sm md:left-3 md:right-auto">
       {entries.map(([condition, label]) => (
-        <div key={condition} className="flex items-center gap-2 text-xs text-slate-700">
+        <div key={condition} className="flex items-center gap-2 text-micro text-foreground">
           <span
-            className="w-3 h-3 rounded-full"
+            aria-hidden="true"
+            className="h-3 w-3 shrink-0 rounded-full"
             style={{ backgroundColor: conditionColors[condition] }}
           />
           {label}

@@ -4,7 +4,7 @@ import { auth } from "./firebase"
 
 export default function SignIn() {
   return (
-    <div className="h-screen flex flex-col items-center justify-center gap-6 bg-slate-50 p-8">
+    <div className="h-dvh flex flex-col items-center justify-center gap-6 bg-slate-50 p-8">
       <div className="flex flex-col items-center gap-2 text-center">
         <MapPin size={40} className="text-emerald-600" />
         <h1 className="text-3xl font-bold text-emerald-600">UpayaHub</h1>

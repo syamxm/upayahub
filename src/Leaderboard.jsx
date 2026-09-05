@@ -10,7 +10,7 @@ export default function Leaderboard({ userId, onClose }) {
   }, [])
 
   return (
-    <div className="absolute inset-0 z-20 bg-slate-900/40 grid place-items-center p-4">
+    <div className="fixed inset-0 z-50 grid place-items-center bg-[#0f1923]/50 p-4">
       <div className="flex max-h-[80%] w-full max-w-md flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
         <div className="flex items-center justify-between p-4 border-b border-slate-200">
           <h2 className="font-bold text-slate-900">Top contributors</h2>
