@@ -13,6 +13,7 @@ import ExploreScreen from "./screens/ExploreScreen"
 import ProfileScreen from "./screens/ProfileScreen"
 import ReportScreen from "./screens/ReportScreen"
 import CommunityScreen from "./screens/CommunityScreen"
+import FeaturesScreen from "./screens/FeaturesScreen"
 import { pointsPerReport } from "./submitReport"
 import { matchesFilters } from "./conditions"
 
@@ -37,6 +38,7 @@ export default function App() {
   const [tab, setTab] = useState("explore")
   const [origin, setOrigin] = useState(null)
   const [locating, setLocating] = useState(false)
+  const [showFeatures, setShowFeatures] = useState(false)
 
   useEffect(() => {
     if (!user) return
@@ -97,7 +99,13 @@ export default function App() {
     )
   }
 
+  function openTab(next) {
+    setShowFeatures(false)
+    setTab(next)
+  }
+
   function openLocation(locationId) {
+    setShowFeatures(false)
     setSelectedId(locationId)
     setTab("explore")
   }
@@ -121,8 +129,24 @@ export default function App() {
   const selected = locations.find((location) => location.id === selectedId)
   const visible = locations.filter((location) => matchesFilters(location, filters))
 
+  if (showFeatures) {
+    return (
+      <AppShell nav={<MainNav items={tabs} active={tab} onChange={openTab} />}>
+        <FeaturesScreen
+          onBack={() => setShowFeatures(false)}
+          locations={locations}
+          points={points}
+          reportCount={reportCount}
+          origin={origin}
+          onLocate={locate}
+          locating={locating}
+        />
+      </AppShell>
+    )
+  }
+
   return (
-    <AppShell nav={<MainNav items={tabs} active={tab} onChange={setTab} />}>
+    <AppShell nav={<MainNav items={tabs} active={tab} onChange={openTab} />}>
       {tab === "explore" && (
         <ExploreScreen
           locations={locations}
@@ -138,6 +162,7 @@ export default function App() {
           origin={origin}
           onLocate={locate}
           locating={locating}
+          onOpenFeatures={() => setShowFeatures(true)}
         />
       )}
 
