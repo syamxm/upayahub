@@ -1,19 +1,9 @@
-import { useEffect, useState } from "react"
-import { collection, getDocs } from "firebase/firestore"
 import { APIProvider, Map, Marker } from "@vis.gl/react-google-maps"
-import { db } from "./firebase"
+import { worstCondition, pinIcon } from "./conditions"
 
-const kualaLumpur = { lat: 3.1450, lng: 101.6958 }
+const kualaLumpur = { lat: 3.145, lng: 101.6958 }
 
-export default function AccessibilityMap({ onSelect }) {
-  const [locations, setLocations] = useState([])
-
-  useEffect(() => {
-    getDocs(collection(db, "locations")).then((snapshot) =>
-      setLocations(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })))
-    )
-  }, [])
-
+export default function AccessibilityMap({ locations, onSelect }) {
   return (
     <APIProvider apiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY}>
       <Map
@@ -28,6 +18,7 @@ export default function AccessibilityMap({ onSelect }) {
             key={location.id}
             position={{ lat: location.lat, lng: location.lng }}
             title={location.name}
+            icon={pinIcon(worstCondition(location))}
             onClick={() => onSelect(location)}
           />
         ))}
