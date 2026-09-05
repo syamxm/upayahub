@@ -15,6 +15,7 @@ export default function App() {
   const [selectedId, setSelectedId] = useState(null)
   const [user, setUser] = useState(null)
   const [points, setPoints] = useState(0)
+  const [reportKey, setReportKey] = useState(0)
   const [checkingAuth, setCheckingAuth] = useState(true)
 
   useEffect(() => {
@@ -41,6 +42,7 @@ export default function App() {
 
   function applyReport(update) {
     setPoints((current) => current + pointsPerReport)
+    setReportKey((current) => current + 1)
     if (!update) return
     setLocations((current) =>
       current.map((location) =>
@@ -76,6 +78,7 @@ export default function App() {
           <LocationDetails
             location={selected}
             userId={user.uid}
+            reportKey={reportKey}
             onClose={() => setSelectedId(null)}
             onReported={applyReport}
           />
