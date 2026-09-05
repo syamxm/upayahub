@@ -1,4 +1,5 @@
 import AccessibilityMap from "./AccessibilityMap"
+import PhotoVerifier from "./PhotoVerifier"
 
 export default function App() {
   return (
@@ -7,8 +8,9 @@ export default function App() {
         <h1 className="text-xl font-bold">UpayaHub</h1>
         <p className="text-sm text-emerald-50">Know Before You Go.</p>
       </header>
-      <main className="flex-1">
+      <main className="flex-1 relative">
         <AccessibilityMap />
+        <PhotoVerifier />
       </main>
     </div>
   )
