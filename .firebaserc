@@ -1,5 +1,8 @@
 {
   "projects": {
-    "default": "upayahub"
-  }
+    "default": "upayahub",
+    "upayahubdb": "upayahub"
+  },
+  "targets": {},
+  "etags": {}
 }
