@@ -15,20 +15,35 @@ service cloud.firestore {
       return request.resource.data.diff(resource.data).affectedKeys();
     }
 
-    function validFeature(feature) {
+    function backedByReport(feature, locationId, field) {
+      let source = get(/databases/$(database)/documents/reports/$(feature.sourceReportId));
+      return source != null
+        && source.data.locationId == locationId
+        && source.data.field == field
+        && source.data.condition == feature.condition;
+    }
+
+    function validFeature(feature, locationId, field) {
       return feature.condition in ['usable', 'damaged', 'blocked', 'unclear', 'none']
         && feature.confirmations is int
-        && feature.confirmations > 0;
+        && feature.confirmations > 0
+        && feature.lastVerified == request.time
+        && feature.sourceReportId is string
+        && backedByReport(feature, locationId, field);
     }
 
     match /locations/{locationId} {
       allow read: if signedIn();
       allow update: if signedIn()
         && changed().hasOnly(['ramp', 'elevator', 'tactilePaving', 'accessibleToilet'])
-        && (!changed().hasAny(['ramp']) || validFeature(request.resource.data.ramp))
-        && (!changed().hasAny(['elevator']) || validFeature(request.resource.data.elevator))
-        && (!changed().hasAny(['tactilePaving']) || validFeature(request.resource.data.tactilePaving))
-        && (!changed().hasAny(['accessibleToilet']) || validFeature(request.resource.data.accessibleToilet));
+        && (!changed().hasAny(['ramp'])
+          || validFeature(request.resource.data.ramp, locationId, 'ramp'))
+        && (!changed().hasAny(['elevator'])
+          || validFeature(request.resource.data.elevator, locationId, 'elevator'))
+        && (!changed().hasAny(['tactilePaving'])
+          || validFeature(request.resource.data.tactilePaving, locationId, 'tactilePaving'))
+        && (!changed().hasAny(['accessibleToilet'])
+          || validFeature(request.resource.data.accessibleToilet, locationId, 'accessibleToilet'));
       allow create, delete: if false;
     }
 
