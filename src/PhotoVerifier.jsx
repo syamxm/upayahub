@@ -1,7 +1,8 @@
 import { useState } from "react"
 import { verifyPhoto } from "./verifyPhoto"
+import { submitReport } from "./submitReport"
 
-export default function PhotoVerifier() {
+export default function PhotoVerifier({ location, onReported }) {
   const [result, setResult] = useState(null)
   const [status, setStatus] = useState("")
 
@@ -13,6 +14,18 @@ export default function PhotoVerifier() {
     try {
       setResult(await verifyPhoto(file))
       setStatus("")
+    } catch (error) {
+      setStatus(error.message)
+    }
+  }
+
+  async function handleSubmit() {
+    setStatus("Saving report...")
+    try {
+      const update = await submitReport(location, result)
+      if (update) onReported(update)
+      setResult(null)
+      setStatus(update ? "Report saved" : "Saved for review, no feature matched")
     } catch (error) {
       setStatus(error.message)
     }
@@ -40,6 +53,12 @@ export default function PhotoVerifier() {
             <dt className="font-medium">Summary</dt>
             <dd>{result.summary}</dd>
           </dl>
+          <button
+            onClick={handleSubmit}
+            className="w-full py-2 rounded bg-emerald-600 text-white text-sm font-medium"
+          >
+            Submit report
+          </button>
         </>
       )}
     </div>
