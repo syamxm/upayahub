@@ -26,6 +26,8 @@ const tabs = [
 
 export default function App() {
   const [locations, setLocations] = useState([])
+  const [locationsStatus, setLocationsStatus] = useState("loading")
+  const [reloadKey, setReloadKey] = useState(0)
   const [selectedId, setSelectedId] = useState(null)
   const [user, setUser] = useState(null)
   const [points, setPoints] = useState(0)
@@ -42,10 +44,20 @@ export default function App() {
 
   useEffect(() => {
     if (!user) return
-    getDocs(collection(db, "locations")).then((snapshot) =>
-      setLocations(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })))
-    )
-  }, [user])
+    let active = true
+    getDocs(collection(db, "locations"))
+      .then((snapshot) => {
+        if (!active) return
+        setLocations(snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() })))
+        setLocationsStatus("ready")
+      })
+      .catch(() => {
+        if (active) setLocationsStatus("error")
+      })
+    return () => {
+      active = false
+    }
+  }, [user, reloadKey])
 
   useEffect(() => {
     onAuthStateChanged(auth, async (account) => {
@@ -97,6 +109,11 @@ export default function App() {
       () => setLocating(false),
       { enableHighAccuracy: true, timeout: 10000 }
     )
+  }
+
+  function reloadLocations() {
+    setLocationsStatus("loading")
+    setReloadKey((current) => current + 1)
   }
 
   function openTab(next) {
@@ -163,6 +180,8 @@ export default function App() {
           onLocate={locate}
           locating={locating}
           onOpenFeatures={() => setShowFeatures(true)}
+          status={locationsStatus}
+          onRetry={reloadLocations}
         />
       )}
 
@@ -174,6 +193,8 @@ export default function App() {
           origin={origin}
           onLocate={locate}
           locating={locating}
+          status={locationsStatus}
+          onRetry={reloadLocations}
         />
       )}
 

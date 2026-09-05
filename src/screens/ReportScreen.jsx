@@ -6,6 +6,8 @@ import Button from "../ui/Button"
 import Card from "../ui/Card"
 import ScreenHeader from "../ui/ScreenHeader"
 import Spinner from "../ui/Spinner"
+import ListSkeleton from "../ui/ListSkeleton"
+import LoadFailure from "../ui/LoadFailure"
 import { byDistanceFrom } from "../distance"
 
 const steps = ["Choose a place", "Add a photo"]
@@ -30,7 +32,16 @@ function Progress({ step }) {
   )
 }
 
-export default function ReportScreen({ locations, userId, onReported, origin, onLocate, locating }) {
+export default function ReportScreen({
+  locations,
+  userId,
+  onReported,
+  origin,
+  onLocate,
+  locating,
+  status,
+  onRetry,
+}) {
   const [search, setSearch] = useState("")
   const [chosenId, setChosenId] = useState(null)
   const chosen = locations.find((location) => location.id === chosenId) ?? null
@@ -108,17 +119,21 @@ export default function ReportScreen({ locations, userId, onReported, origin, on
                   <MapPin size={15} aria-hidden="true" className="text-muted-foreground" />
                   {origin ? "Nearest places" : "All places"}
                 </h2>
-                <LocationList
-                  locations={ordered}
-                  selectedId={null}
-                  onSelect={(location) => setChosenId(location.id)}
-                  origin={origin}
-                  emptyMessage={
-                    term
-                      ? `No places match "${search.trim()}".`
-                      : "No places are loaded yet."
-                  }
-                />
+                {status === "loading" ? (
+                  <ListSkeleton label="Loading places" />
+                ) : status === "error" ? (
+                  <LoadFailure message="Could not load places." onRetry={onRetry} />
+                ) : (
+                  <LocationList
+                    locations={ordered}
+                    selectedId={null}
+                    onSelect={(location) => setChosenId(location.id)}
+                    origin={origin}
+                    emptyMessage={
+                      term ? `No places match "${search.trim()}".` : "No places are loaded yet."
+                    }
+                  />
+                )}
               </div>
             </div>
           )}

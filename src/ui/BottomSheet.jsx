@@ -1,27 +1,41 @@
-import { useRef, useState } from "react"
+import { useRef } from "react"
 import { ChevronDown, ChevronUp } from "lucide-react"
 
 export default function BottomSheet({ title, expanded, onToggle, children }) {
-  const [dragged, setDragged] = useState(null)
   const start = useRef(null)
+  const travel = useRef(0)
+  const handled = useRef(false)
 
   function onPointerDown(event) {
     start.current = event.clientY
-    setDragged(0)
+    travel.current = 0
+    handled.current = false
   }
 
   function onPointerMove(event) {
     if (start.current === null) return
-    setDragged(event.clientY - start.current)
+    travel.current = event.clientY - start.current
   }
 
   function onPointerUp() {
     if (start.current === null) return
-    const travel = dragged ?? 0
-    if (travel < -40 && !expanded) onToggle(true)
-    if (travel > 40 && expanded) onToggle(false)
+    if (travel.current < -40 && !expanded) {
+      onToggle(true)
+      handled.current = true
+    }
+    if (travel.current > 40 && expanded) {
+      onToggle(false)
+      handled.current = true
+    }
     start.current = null
-    setDragged(null)
+  }
+
+  function onClick() {
+    if (handled.current) {
+      handled.current = false
+      return
+    }
+    onToggle(!expanded)
   }
 
   return (
@@ -33,7 +47,7 @@ export default function BottomSheet({ title, expanded, onToggle, children }) {
     >
       <button
         type="button"
-        onClick={() => onToggle(!expanded)}
+        onClick={onClick}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}

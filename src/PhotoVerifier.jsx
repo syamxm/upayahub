@@ -24,8 +24,8 @@ export default function PhotoVerifier({ location, userId, onReported }) {
     try {
       setResult(await verifyPhoto(file))
       setStatus("")
-    } catch (failure) {
-      setError(failure.message)
+    } catch {
+      setError("Could not check that photo. Please try again.")
       setStatus("")
     }
     setBusy(false)
@@ -44,8 +44,8 @@ export default function PhotoVerifier({ location, userId, onReported }) {
         setStatus("Report saved. One more person needs to confirm it before the map changes.")
       else setStatus("Report saved and sent for review.")
       if (input.current) input.current.value = ""
-    } catch (failure) {
-      setError(failure.message)
+    } catch {
+      setError("Could not save your report. Nothing was sent. Please try again.")
       setStatus("")
     }
     setBusy(false)
