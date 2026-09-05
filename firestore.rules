@@ -47,13 +47,26 @@ service cloud.firestore {
       allow create, delete: if false;
     }
 
+    function redactsOwnIdentity() {
+      return resource.data.reporterId == request.auth.uid
+        && changed().hasOnly(['reporterName', 'reporterPhoto'])
+        && !('reporterName' in request.resource.data)
+        && !('reporterPhoto' in request.resource.data);
+    }
+
     match /reports/{reportId} {
       allow read: if signedIn();
       allow create: if signedIn()
         && request.resource.data.reporterId == request.auth.uid
         && request.resource.data.createdAt == request.time
-        && request.resource.data.condition in ['usable', 'damaged', 'blocked', 'unclear'];
-      allow update, delete: if false;
+        && request.resource.data.condition in ['usable', 'damaged', 'blocked', 'unclear']
+        && (request.resource.data.reporterName == null
+          || (request.resource.data.reporterName is string
+            && request.resource.data.reporterName.size() <= 100))
+        && (request.resource.data.reporterPhoto == null
+          || request.resource.data.reporterPhoto is string);
+      allow update: if signedIn() && redactsOwnIdentity();
+      allow delete: if false;
     }
 
     match /votes/{voteId} {
