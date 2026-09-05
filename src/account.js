@@ -9,7 +9,7 @@ import {
   where,
   writeBatch,
 } from "firebase/firestore"
-import { db } from "./firebase"
+import { db } from "./db"
 
 async function redactReports(userId) {
   const own = await getDocs(query(collection(db, "reports"), where("reporterId", "==", userId)))
