@@ -57,7 +57,7 @@ service cloud.firestore {
         && request.resource.data.get('points', 0) <= 10;
       allow update: if isOwner(userId)
         && request.resource.data.get('points', 0) <= resource.data.get('points', 0) + 10;
-      allow delete: if false;
+      allow delete: if isOwner(userId);
     }
   }
 }
