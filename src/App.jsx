@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { collection, getDocs, doc, getDoc, setDoc } from "firebase/firestore"
+import { collection, getDocs, doc, getDoc, setDoc, deleteField } from "firebase/firestore"
 import { onAuthStateChanged } from "firebase/auth"
 import { Trophy } from "lucide-react"
 import { db, auth } from "./firebase"
@@ -9,6 +9,7 @@ import MapLegend from "./MapLegend"
 import SignIn from "./SignIn"
 import Avatar from "./Avatar"
 import Leaderboard from "./Leaderboard"
+import AccountMenu from "./AccountMenu"
 import MapFilters from "./MapFilters"
 import { pointsPerReport } from "./submitReport"
 import { matchesFilters } from "./conditions"
@@ -18,10 +19,12 @@ export default function App() {
   const [selectedId, setSelectedId] = useState(null)
   const [user, setUser] = useState(null)
   const [points, setPoints] = useState(0)
+  const [reportCount, setReportCount] = useState(0)
   const [reportKey, setReportKey] = useState(0)
   const [showLeaderboard, setShowLeaderboard] = useState(false)
   const [checkingAuth, setCheckingAuth] = useState(true)
   const [filters, setFilters] = useState([])
+  const [showAccount, setShowAccount] = useState(false)
 
   useEffect(() => {
     if (!user) return
@@ -38,11 +41,12 @@ export default function App() {
       const profile = doc(db, "users", account.uid)
       await setDoc(
         profile,
-        { name: account.displayName, photo: account.photoURL, email: account.email },
+        { name: account.displayName, photo: account.photoURL, email: deleteField() },
         { merge: true }
       )
       const saved = await getDoc(profile)
       setPoints(saved.data().points ?? 0)
+      setReportCount(saved.data().reportCount ?? 0)
     })
   }, [])
 
@@ -94,7 +98,9 @@ export default function App() {
             <Trophy size={16} />
             <span className="font-semibold text-sm">{points}</span>
           </button>
-          <Avatar user={user} />
+          <button onClick={() => setShowAccount(true)} aria-label="Open account menu">
+            <Avatar user={user} />
+          </button>
         </div>
       </header>
       <MapFilters
@@ -106,6 +112,14 @@ export default function App() {
       <main className="flex-1 relative">
         <AccessibilityMap locations={visible} onSelect={(location) => setSelectedId(location.id)} />
         <MapLegend />
+        {showAccount && (
+          <AccountMenu
+            user={user}
+            points={points}
+            reportCount={reportCount}
+            onClose={() => setShowAccount(false)}
+          />
+        )}
         {showLeaderboard && (
           <Leaderboard userId={user.uid} onClose={() => setShowLeaderboard(false)} />
         )}
