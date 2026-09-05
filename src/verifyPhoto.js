@@ -1,72 +1,19 @@
-const instruction = `You are inspecting a photo submitted to an accessibility reporting app.
+import { getFunctions, httpsCallable } from "firebase/functions"
+import { app } from "./firebase"
 
-First, identify whether it shows an accessibility feature and what condition it is in.
-
-Second, judge whether the image is a real camera photograph or synthetic, meaning AI generated,
-rendered, or heavily manipulated. Look for warped or nonsensical text on signage, implausible
-geometry in railings and structures, malformed hands or wheelchair parts, repeated textures,
-unnaturally even lighting, and missing camera artefacts such as sensor noise and chromatic
-aberration. State the single strongest piece of evidence in syntheticReason.
-
-Set both confidence values between 0 and 1. Keep summary and syntheticReason under 20 words each.`
-
-let loading
-
-function load() {
-  if (!loading) {
-    loading = import("@google/genai").then(({ GoogleGenAI, Type }) => ({
-      ai: new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY }),
-      schema: {
-        type: Type.OBJECT,
-        properties: {
-          isAccessibilityFeature: { type: Type.BOOLEAN },
-          featureType: {
-            type: Type.STRING,
-            enum: ["ramp", "elevator", "tactile_paving", "accessible_toilet", "parking", "none"],
-          },
-          condition: { type: Type.STRING, enum: ["usable", "damaged", "blocked", "unclear"] },
-          confidence: { type: Type.NUMBER },
-          looksSynthetic: { type: Type.BOOLEAN },
-          syntheticConfidence: { type: Type.NUMBER },
-          syntheticReason: { type: Type.STRING },
-          summary: { type: Type.STRING },
-        },
-        required: [
-          "isAccessibilityFeature",
-          "featureType",
-          "condition",
-          "confidence",
-          "looksSynthetic",
-          "syntheticConfidence",
-          "syntheticReason",
-          "summary",
-        ],
-      },
-    }))
-  }
-  return loading
-}
+const checkPhoto = httpsCallable(getFunctions(app, "asia-southeast1"), "checkPhoto")
 
 function toBase64(file) {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = () => resolve(reader.result.split(",")[1])
+    reader.onerror = () => reject(new Error("Could not read that file."))
     reader.readAsDataURL(file)
   })
 }
 
 export async function verifyPhoto(file) {
-  const [{ ai, schema }, data] = await Promise.all([load(), toBase64(file)])
-
-  const response = await ai.models.generateContent({
-    model: "gemini-3.1-flash-lite",
-    contents: [
-      {
-        parts: [{ inlineData: { mimeType: file.type, data } }, { text: instruction }],
-      },
-    ],
-    config: { responseMimeType: "application/json", responseSchema: schema },
-  })
-
-  return JSON.parse(response.text)
+  const data = await toBase64(file)
+  const response = await checkPhoto({ mimeType: file.type, data })
+  return response.data
 }
