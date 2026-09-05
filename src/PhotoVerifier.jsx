@@ -19,7 +19,7 @@ export default function PhotoVerifier() {
   }
 
   return (
-    <div className="absolute bottom-4 left-4 right-4 z-10 bg-white rounded-lg shadow-lg p-4 space-y-2">
+    <div className="border-t border-slate-200 pt-3 space-y-2">
       <input type="file" accept="image/*" onChange={handleFile} className="text-sm" />
       {status && <p className="text-sm text-slate-500">{status}</p>}
       {result && (
