@@ -4,14 +4,39 @@
 
 Wheelchair users, blind travellers, and parents with strollers across Malaysia regularly arrive somewhere only to find the ramp blocked or the lift out of service. UpayaHub lets anyone photograph an accessibility feature, have an AI verify what it shows and what condition it is in, and publish that to a live map — with community voting deciding what the map actually says.
 
+**Live:** https://upayahub.syamxm.com
+
+---
+
+## Status at a glance
+
+| Area | State |
+|---|---|
+| Map, reporting, voting, leaderboard | Working |
+| AI photo verification | Working, key now server-side |
+| Google sign-in | Working |
+| Firestore security rules | Hardened, 14 emulator tests |
+| Production deploy | Live on Cloudflare Workers |
+| SOS broadcast | **UI only — no backend** |
+| Rewards / vouchers | **UI only — no backend** |
+| Email report to council | **UI only — CSV download works** |
+
+Anything marked "UI only" shows an on-screen `TODO: Add Backend Feature Later` notice in the app. Nothing is faked silently.
+
 ---
 
 ## Features
+
+### Working
+
+**Four tabs** — Explore (map + list), Report (submit), Community (feed + stats), Profile (points, leaderboard, settings). A fifth Features screen, opened from Explore, holds the community tools listed under "Not built yet".
 
 **Accessibility map**
 Google Maps view, currently centred on Kuala Lumpur because that is where the seeded locations are — coverage is meant to grow across Malaysia as the community adds places. Every location is a pin coloured by its *worst* tracked feature, so a place with a working lift but a blocked ramp still shows red. A legend explains the colours.
 
 Four features are tracked per location: ramp, elevator, tactile paving, accessible toilet. Each has a condition of `usable`, `damaged`, `blocked`, or `unclear`.
+
+Filter by condition, search by name, and sort by distance from your location.
 
 **AI photo verification**
 Upload a photo of a ramp, lift, tactile paving or accessible toilet. Gemini (`gemini-3.1-flash-lite`) returns a structured verdict: which feature it is, what condition it's in, a confidence score, and a one-line summary.
@@ -25,7 +50,7 @@ Warnings and all-clears are treated differently on purpose:
 - A report that makes a feature *better* (blocked → usable) is held as `pending` until **2 community confirmations**. Clearing a warning is the expensive mistake, so it costs more evidence.
 
 **Community voting**
-Each location shows its 10 most recent reports. Any signed-in user can confirm (👍) or dispute (👎) a report — one vote per person, and you cannot vote on your own. When a pending report reaches 2 confirmations, it is promoted and the map updates.
+Each location shows its 10 most recent reports. Any signed-in user can confirm (👍) or dispute (👎) a report — one vote per person, and you cannot vote on your own. Both rules are now enforced in Firestore, not just hidden in the UI. When a pending report reaches 2 confirmations, it is promoted and the map updates.
 
 **Freshness decay**
 A feature confirmed more than **30 days** ago is marked stale and drops back to "unconfirmed" in the UI. Accessibility changes; old data stops claiming to be verified.
@@ -33,8 +58,26 @@ A feature confirmed more than **30 days** ago is marked stale and drops back to 
 **Leaderboard and credibility**
 10 points per report submitted. The leaderboard ranks contributors by points and shows a credibility score — the percentage of your reports that the community confirmed rather than disputed.
 
+**CSV export**
+The Civic panel builds a ranked report for any location, worst conditions first, and downloads it as a CSV you can send to a council yourself.
+
+**Account controls**
+Light/dark/system theme toggle. Account deletion that re-authenticates, strips your name and photo from every report you filed, and removes your user document.
+
 **Google sign-in**
 Firebase Auth with a Google popup. Reports carry your name and photo so credibility accrues to a real identity.
+
+### Not built yet
+
+These have finished UI and an explicit in-app TODO notice. They need server-side work nobody has written:
+
+| Feature | What's missing |
+|---|---|
+| **SOS broadcast** | Finding nearby helpers, notifying them, tracking who responds. The button contacts nobody. |
+| **Helper side of SOS** | A volunteer accepting and navigating to someone in trouble. |
+| **Rewards catalogue** | Partner vouchers, stock levels, redeeming points, issuing codes. Nothing is redeemable. |
+| **Voucher wallet** | Storing redeemed vouchers, expiry dates, QR codes. |
+| **Email to council** | Mail delivery, audit trail, reference numbers. The CSV download works today as a manual substitute. |
 
 ---
 
@@ -45,44 +88,76 @@ Firebase Auth with a Google popup. Reports carry your name and photo so credibil
 | UI | React 19, Vite 8, Tailwind CSS v4 |
 | Icons | lucide-react |
 | Map | `@vis.gl/react-google-maps` (Google Maps JS API) |
-| AI | `@google/genai` — Gemini, called from the browser |
+| AI | Gemini via a **Firebase Cloud Function** (callable) |
 | Data + auth | Firebase Firestore + Firebase Auth (Google provider) |
+| Hosting | Cloudflare Workers (static assets) |
 
-There is no backend server. The browser talks to Firestore and Gemini directly; Firestore security rules are the enforcement layer.
+The browser talks to Firestore directly, with security rules as the enforcement layer. The **one** server-side piece is the Gemini proxy — the AI key must never reach the client.
+
+### Why Gemini moved server-side
+
+It used to be called straight from the browser with a `VITE_GEMINI_API_KEY`. Vite inlines every `VITE_` variable into the bundle as a literal string, so that key was readable by anyone who opened the site and billable against the project. It now lives in a Firebase secret, read only inside the function.
+
+The function enforces: **auth required**, MIME allowlist (JPEG/PNG/WebP), 4 MB size cap, **20 checks per user per hour**, sanitised errors that never leak the key or upstream error bodies, and CORS restricted to the production origin plus localhost.
 
 ### Project layout
 
 ```
 src/
-  main.jsx              React entry
-  App.jsx               Auth gate, location loading, top-level state
-  firebase.js           Firebase app / db / auth init from env vars
-  conditions.js         Condition model: colours, severity, freshness, pin SVGs
-  AccessibilityMap.jsx  Google Map + condition-coloured markers
-  MapLegend.jsx         Colour key overlay
-  LocationDetails.jsx   Bottom sheet: per-feature state + provenance
-  PhotoVerifier.jsx     Upload → verify → submit flow
-  verifyPhoto.js        Gemini call, JSON schema, AI-image detection prompt
-  submitReport.js       Writes reports, awards points, applies or holds updates
-  ReportList.jsx        Recent reports with confirm/dispute buttons
-  votes.js              Vote writes + promotion at 2 confirmations
-  Leaderboard.jsx       Ranked contributors modal
-  leaderboard.js        Points + credibility aggregation
-  SignIn.jsx            Google sign-in screen
-  Avatar.jsx            User avatar with initial fallback
-firestore.rules         Security rules (the real backend)
+  main.jsx                React entry
+  App.jsx                 Auth gate, tab routing, location loading, top-level state
+  firebase.js             Firebase app + auth init from env vars
+  db.js                   Firestore handle
+  session.js              Profile sync, location loading
+  account.js              Account deletion + report redaction
+  theme.js                Light/dark/system theme
+  conditions.js           Condition model: colours, severity, freshness, pin SVGs
+  distance.js             Haversine distance for "nearest places"
+  verifyPhoto.js          Calls the checkPhoto Cloud Function
+  submitReport.js         Writes reports, awards points, applies or holds updates
+  votes.js                Vote writes + promotion at 2 confirmations
+  feed.js                 Community feed + aggregate stats
+  leaderboard.js          Points + credibility aggregation
+  reporter.js             Anonymous-reporter display fallback
+  exportReport.js         CSV generation + download
+  screens/                Explore, Report, Community, Profile, Features
+  features/               SosPanel, RewardsPanel, CivicPanel (see "Not built yet")
+  ui/                     Shared components: Button, Card, Modal, BottomSheet, TodoStub, …
+  AccessibilityMap.jsx    Google Map + condition-coloured markers
+  PhotoVerifier.jsx       Upload → verify → submit flow
+  ReportList.jsx          Recent reports with confirm/dispute buttons
+  LocationDetails.jsx     Bottom sheet: per-feature state + provenance
+
+functions/
+  index.js                checkPhoto callable: auth, rate limit, Gemini call
+  validation.js           Image input validation
+  validation.test.js      Validation tests
+
+firestore.rules           Security rules (the real backend)
+rules.test.js             14 rules tests against the Firestore emulator
+wrangler.jsonc            Cloudflare Workers static-asset config
 ```
 
 ### Firestore collections
 
 | Collection | Shape |
 |---|---|
-| `locations` | `name`, `category`, `lat`, `lng`, and per-feature objects `ramp` / `elevator` / `tactilePaving` / `accessibleToilet` = `{ condition, confirmations, lastVerified }` |
-| `reports` | `locationId`, `reporterId`, `featureType`, `condition`, `confidence`, `summary`, `looksSynthetic`, `needsReview`, `pending`, `createdAt` |
+| `locations` | `name`, `category`, `lat`, `lng`, and per-feature objects `ramp` / `elevator` / `tactilePaving` / `accessibleToilet` = `{ condition, confirmations, lastVerified, sourceReportId }` |
+| `reports` | `locationId`, `locationName`, `reporterId`, `reporterName`, `reporterPhoto`, `featureType`, `field`, `condition`, `confidence`, `summary`, `looksSynthetic`, `syntheticConfidence`, `needsReview`, `pending`, `createdAt` |
 | `votes` | doc id is `{reportId}_{userId}`; fields `reportId`, `voterId`, `value` (1 or -1), `createdAt` |
-| `users` | `name`, `photo`, `email`, `points`, `reportCount` |
+| `users` | `name`, `photo`, `points`, `reportCount`, `lastReportId` |
+| `photoCheckLimits` | Per-user rate-limit counters. Written only by the Cloud Function; **closed to all clients**. |
 
-Rules enforce: read requires sign-in; `locations` can only be updated on the four feature fields with a valid condition; reports and votes are create-only and must carry the caller's own uid; a user can never award themselves more than 10 points in a single write; nothing can be deleted.
+### What the rules enforce
+
+- Reading anything requires sign-in. Signed-out users get nothing.
+- **Reports** must carry the caller's own uid, reference a location that exists, use valid enums, keep `confidence` in 0–1, and pass a field allowlist. Critically, `needsReview` must equal `looksSynthetic || confidence < 0.6` — a client cannot mark a flagged photo as clean.
+- **Votes** are create-only, one per person per report, cannot be cast on your own report, and cannot be edited or deleted.
+- **Locations** change only on the four feature fields, and only when backed by a real report whose condition matches.
+- **Points** require a fresh report you actually own. The user document stores `lastReportId`; a points write must reference a report that exists, belongs to you, and differs from the one already recorded — so the same write cannot be replayed for free points.
+- Everything not explicitly matched is denied by a catch-all rule.
+
+Known limits, so nobody is surprised: the `+10` points value is hardcoded in the rules and duplicated in `conditions.js`, and rules cannot judge photo *quality* — only that a real report exists. Moving the report write into the Cloud Function would close that.
 
 ---
 
@@ -120,8 +195,10 @@ On Windows use PowerShell or Git Bash — both work fine.
 1. Go to the [Firebase console](https://console.firebase.google.com/) → **Add project**.
 2. **Build → Firestore Database → Create database**. Start in production mode; the rules in this repo will replace the defaults.
 3. **Build → Authentication → Get started → Sign-in method → Google → Enable.**
-4. Under Authentication → **Settings → Authorized domains**, confirm `localhost` is listed.
+4. Under Authentication → **Settings → Authorised domains**, confirm `localhost` is listed.
 5. **Project settings (gear icon) → Your apps → Web app (`</>`)**. Register the app and copy the `firebaseConfig` values — you need them in step 5.
+
+Cloud Functions require the **Blaze (pay-as-you-go)** plan. The free tier covers development use comfortably, but a card must be on file.
 
 ### 4. Get the Google API keys
 
@@ -136,9 +213,7 @@ On Windows use PowerShell or Git Bash — both work fine.
 
 **Gemini API**
 
-Create a key at [Google AI Studio](https://aistudio.google.com/apikey).
-
-> Note: the Gemini key is used directly from the browser, so it is visible to anyone who opens the site. That is fine for local development and a demo. Before any public deployment, move the Gemini call behind a server function and keep the key there.
+Create a key at [Google AI Studio](https://aistudio.google.com/apikey). **This key never goes in `.env.local`.** It is set as a Firebase secret in step 6.
 
 ### 5. Add environment variables
 
@@ -152,10 +227,9 @@ VITE_FIREBASE_STORAGE_BUCKET=your-project.firebasestorage.app
 VITE_FIREBASE_MESSAGING_SENDER_ID=...
 VITE_FIREBASE_APP_ID=...
 VITE_GOOGLE_MAPS_API_KEY=...
-VITE_GEMINI_API_KEY=...
 ```
 
-The first six come from the Firebase `firebaseConfig` object in step 3.5.
+All seven come from the Firebase `firebaseConfig` object in step 3.5, plus the Maps key from step 4. There is deliberately **no Gemini variable here** — see step 6.
 
 To create the file:
 
@@ -164,22 +238,41 @@ To create the file:
 
 Vite only exposes variables prefixed `VITE_`, and it reads `.env.local` at startup — restart the dev server after any change.
 
-### 6. Deploy the Firestore rules
+### 6. Deploy the Cloud Function
+
+Photo verification will not work until this is live.
+
+```bash
+npm install -g firebase-tools
+firebase login
+firebase use --add                              # pick your project
+cd functions && npm install && cd ..
+firebase functions:secrets:set GEMINI_API_KEY   # paste the key from step 4
+firebase deploy --only functions
+```
+
+Deployed to `asia-southeast1` (Singapore). The client pins the same region in `src/verifyPhoto.js` — if you change one, change both.
+
+If the first call returns 403, grant public invoker so the request can reach the function's own auth check:
+
+```bash
+gcloud run services add-iam-policy-binding checkphoto \
+  --region=asia-southeast1 --member=allUsers --role=roles/run.invoker
+```
+
+### 7. Deploy the Firestore rules
 
 The app cannot write anything until the rules in `firestore.rules` are live.
 
 Either paste the contents of `firestore.rules` into **Firestore → Rules** in the Firebase console and click Publish, or use the CLI:
 
 ```bash
-npm install -g firebase-tools
-firebase login
-firebase use --add          # pick your project
 firebase deploy --only firestore:rules
 ```
 
 `.firebaserc` currently points at the project alias `upayahub`; `firebase use --add` will repoint it at yours.
 
-### 7. Seed at least one location
+### 8. Seed at least one location
 
 The rules deliberately forbid creating locations from the app (`allow create: if false`), so add them by hand in **Firestore → Data → Start collection**:
 
@@ -196,7 +289,7 @@ The rules deliberately forbid creating locations from the app (`allow create: if
 
 Feature fields are optional — anything absent shows as "No reports yet" and gets filled in by the first verified report.
 
-### 8. Run it
+### 9. Run it
 
 ```bash
 npm run dev
@@ -204,13 +297,82 @@ npm run dev
 
 Open the printed URL (usually http://localhost:5173). Sign in with Google, tap a pin, and upload a photo of a ramp or lift to try the verification flow.
 
-### Other scripts
+### Scripts
 
 ```bash
+npm run dev        # dev server
 npm run build      # production build into dist/
 npm run preview    # serve the production build locally
-npm run lint       # eslint
+npm run lint       # eslint (covers src/ and functions/)
+npm test           # unit tests: scoring, tokens, CSV export
+npm run test:rules # 14 Firestore rules tests against the emulator
 ```
+
+`test:rules` needs **Java 21+**. If your default JDK is older:
+
+```bash
+JAVA_HOME=/usr/lib/jvm/java-21-openjdk PATH=/usr/lib/jvm/java-21-openjdk/bin:$PATH npm run test:rules
+```
+
+Function tests run separately: `cd functions && npm test`.
+
+---
+
+## Production deployment
+
+Hosted on **Cloudflare Workers** with static assets, built from `main` by Workers Builds.
+
+### Cloudflare setup
+
+| Setting | Value |
+|---|---|
+| Build command | `npm run build` |
+| Deploy command | `npx wrangler deploy` |
+| Output | `dist` (set in `wrangler.jsonc`) |
+| Node version | `.node-version` → `24` |
+| SPA fallback | `not_found_handling: "single-page-application"` |
+
+**Build variables** live in **Settings → Builds → Variables and secrets** — *not* the runtime "Variables and Secrets" panel, which a static-asset-only Worker cannot use. Add the same seven `VITE_*` variables from step 5, as type **Variable**.
+
+They are Variables rather than Secrets on purpose: every `VITE_` value is compiled into the public JS bundle regardless, so marking them Secret hides them from your own dashboard while changing nothing about their exposure. Their real protection is the API key referrer restrictions below.
+
+Build variables apply at **build time only** — after changing one you must trigger a new deployment. An existing deployment stays broken no matter how often you refresh.
+
+### Custom domain
+
+Attach it from the Worker: **Settings → Domains & Routes → Add → Custom Domain**. Do **not** hand-create a proxied CNAME pointing at `*.workers.dev` — Cloudflare then treats it as an origin it must reach over HTTP and you get a 522.
+
+### API key restrictions
+
+Firebase browser key — **Websites**:
+
+```
+https://upayahub.syamxm.com/*
+https://upayahub.firebaseapp.com/*
+https://upayahub.web.app/*
+http://localhost:5173/*
+http://localhost:4173/*
+```
+
+The two `firebaseapp.com` / `web.app` entries are **required**. Google sign-in redirects through `upayahub.firebaseapp.com/__/auth/handler`, which calls Identity Toolkit with the same key from *that* origin. Omit them and sign-in fails with "The requested action is invalid."
+
+API restrictions: Identity Toolkit, Token Service, Cloud Firestore, Cloud Functions.
+
+Maps browser key — same website list, API restrictions limited to **Maps JavaScript API only**.
+
+Gemini server key — **no** referrer restriction (Cloud Functions has no stable referrer or egress IP), restricted to the **Generative Language API**, used only by the function.
+
+### Firebase authorised domains
+
+Add the production domain under **Authentication → Settings → Authorised domains**, or Google sign-in fails with `auth/unauthorized-domain`.
+
+### Deploy order
+
+1. Set the Gemini secret, `firebase deploy --only functions`
+2. `firebase deploy --only firestore:rules`
+3. Merge to `main` → Cloudflare builds automatically
+
+Rules before the site: the current rules reject the old `submitReport` write shape, so a stale cached bundle fails to award points until it reloads.
 
 ---
 
@@ -218,9 +380,21 @@ npm run lint       # eslint
 
 | Symptom | Cause |
 |---|---|
-| Map area is blank/grey | Maps key missing, Maps JavaScript API not enabled, or the referrer restriction doesn't include your actual port. Check the browser console. |
-| Sign-in popup opens then closes | Google provider not enabled in Firebase Auth, or `localhost` missing from Authorized domains. Also check the browser isn't blocking popups. |
-| No pins on the map | The `locations` collection is empty — see step 7. |
-| "Missing or insufficient permissions" | Firestore rules not deployed (step 6), or you're signed out. |
-| Photo upload errors | Gemini key missing or invalid, or you've hit the free-tier rate limit. The error text is shown under the file input. |
+| Blank page, dark background, nothing renders | Build variables missing, so Firebase config compiled to `undefined` and `initializeApp` threw. Check the deployed bundle for `projectId:void 0`. |
+| Sign-in popup shows "The requested action is invalid." | `upayahub.firebaseapp.com/*` missing from the Firebase key's referrer list. |
+| Sign-in popup opens then closes | Google provider not enabled, or the domain missing from Authorised domains. Also check the browser isn't blocking popups. |
+| Error 522 on the custom domain | A hand-made CNAME to `*.workers.dev`. Delete it and attach the domain from the Worker instead. |
+| Map area is blank/grey | Maps key missing, Maps JavaScript API not enabled, or the referrer restriction doesn't include your actual port. |
+| No pins on the map | The `locations` collection is empty — see step 8. |
+| "Missing or insufficient permissions" | Firestore rules not deployed (step 7), or you're signed out. |
+| Photo check always fails | Function not deployed, `GEMINI_API_KEY` secret not set, or you've hit 20 checks in an hour. |
+| Photo check fails only on preview deploys | Preview URLs aren't in the function's CORS allowlist. Add the hostname to `allowedOrigins` in `functions/index.js`. |
 | Changed `.env.local`, nothing happened | Restart `npm run dev`. Vite reads env files only at startup. |
+
+---
+
+## Contributing
+
+Branch off `main`, open a PR — no direct pushes. Branch names: `feature/`, `fix/`, `refactor/`, `chore/`, `docs/`.
+
+Before opening a PR run `npm run lint`, `npm test`, and `npm run test:rules` if you touched `firestore.rules`.
