@@ -2,7 +2,7 @@ import { useState } from "react"
 import { verifyPhoto } from "./verifyPhoto"
 import { submitReport } from "./submitReport"
 
-export default function PhotoVerifier({ location, onReported }) {
+export default function PhotoVerifier({ location, userId, onReported }) {
   const [result, setResult] = useState(null)
   const [status, setStatus] = useState("")
 
@@ -22,8 +22,8 @@ export default function PhotoVerifier({ location, onReported }) {
   async function handleSubmit() {
     setStatus("Saving report...")
     try {
-      const update = await submitReport(location, result)
-      if (update) onReported(update)
+      const update = await submitReport(location, result, userId)
+      onReported(update)
       setResult(null)
       setStatus(update ? "Report saved" : "Saved for review, no feature matched")
     } catch (error) {

@@ -1,4 +1,4 @@
-import { collection, addDoc, doc, updateDoc, serverTimestamp } from "firebase/firestore"
+import { collection, addDoc, doc, updateDoc, setDoc, increment, serverTimestamp } from "firebase/firestore"
 import { db } from "./firebase"
 
 const featureFields = {
@@ -8,21 +8,31 @@ const featureFields = {
   accessible_toilet: "accessibleToilet",
 }
 
-export async function submitReport(location, result) {
+export const pointsPerReport = 10
+
+export async function submitReport(location, result, userId) {
   const field = featureFields[result.featureType]
+  const needsReview = result.looksSynthetic || result.confidence < 0.6
 
   await addDoc(collection(db, "reports"), {
     locationId: location.id,
     locationName: location.name,
+    reporterId: userId,
     featureType: result.featureType,
     condition: result.condition,
     confidence: result.confidence,
     summary: result.summary,
     looksSynthetic: result.looksSynthetic,
     syntheticConfidence: result.syntheticConfidence,
-    needsReview: result.looksSynthetic || result.confidence < 0.6,
+    needsReview,
     createdAt: serverTimestamp(),
   })
+
+  await setDoc(
+    doc(db, "users", userId),
+    { points: increment(pointsPerReport), reportCount: increment(1) },
+    { merge: true }
+  )
 
   if (!field) return null
 

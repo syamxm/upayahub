@@ -1,0 +1,59 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    function conditionsValid(data, fields) {
+      return data.diff(resource.data).affectedKeys().hasOnly(fields)
+        && data.ramp in ['usable', 'damaged', 'blocked', 'unclear', 'none']
+        && data.elevator in ['usable', 'damaged', 'blocked', 'unclear', 'none']
+        && data.tactilePaving in ['usable', 'damaged', 'blocked', 'unclear', 'none']
+        && data.accessibleToilet in ['usable', 'damaged', 'blocked', 'unclear', 'none'];
+    }
+
+    match /locations/{locationId} {
+      allow read: if signedIn();
+      allow update: if signedIn()
+        && conditionsValid(
+             request.resource.data,
+             ['ramp', 'elevator', 'tactilePaving', 'accessibleToilet']
+           );
+      allow create, delete: if false;
+    }
+
+    match /reports/{reportId} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.reporterId == request.auth.uid
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.condition in ['usable', 'damaged', 'blocked', 'unclear'];
+      allow update, delete: if false;
+    }
+
+    match /votes/{voteId} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.voterId == request.auth.uid
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.value in [1, -1];
+      allow update, delete: if false;
+    }
+
+    match /users/{userId} {
+      allow read: if signedIn();
+      allow create: if isOwner(userId)
+        && request.resource.data.get('points', 0) <= 10;
+      allow update: if isOwner(userId)
+        && request.resource.data.get('points', 0) <= resource.data.get('points', 0) + 10;
+      allow delete: if false;
+    }
+  }
+}
