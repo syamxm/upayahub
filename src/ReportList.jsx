@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { ThumbsUp, ThumbsDown, ShieldAlert } from "lucide-react"
+import { ThumbsUp, ThumbsDown, ShieldAlert, Clock } from "lucide-react"
 import { loadReports, castVote } from "./votes"
 
 function timeAgo(createdAt) {
@@ -11,27 +11,28 @@ function timeAgo(createdAt) {
   return `${Math.round(minutes / 1440)}d ago`
 }
 
-export default function ReportList({ locationId, userId, refreshKey }) {
+export default function ReportList({ locationId, userId, refreshKey, onConfirmed }) {
   const [reports, setReports] = useState([])
 
   useEffect(() => {
     loadReports(locationId).then(setReports)
   }, [locationId, refreshKey])
 
-  async function vote(reportId, value) {
+  async function vote(report, value) {
     setReports((current) =>
-      current.map((report) =>
-        report.id === reportId
+      current.map((entry) =>
+        entry.id === report.id
           ? {
-              ...report,
-              voters: [...report.voters, userId],
-              confirmed: report.confirmed + (value === 1 ? 1 : 0),
-              disputed: report.disputed + (value === -1 ? 1 : 0),
+              ...entry,
+              voters: [...entry.voters, userId],
+              confirmed: entry.confirmed + (value === 1 ? 1 : 0),
+              disputed: entry.disputed + (value === -1 ? 1 : 0),
             }
-          : report
+          : entry
       )
     )
-    await castVote(reportId, userId, value)
+    const promoted = await castVote(report, userId, value)
+    if (promoted) onConfirmed(promoted)
   }
 
   if (reports.length === 0) {
@@ -50,6 +51,12 @@ export default function ReportList({ locationId, userId, refreshKey }) {
               <span>{timeAgo(report.createdAt)}</span>
             </div>
             <p className="text-sm text-slate-700">{report.summary}</p>
+            {report.pending && (
+              <p className="flex items-center gap-1.5 text-xs text-slate-500">
+                <Clock size={13} />
+                Awaiting confirmation before this updates the map
+              </p>
+            )}
             {report.needsReview && (
               <p className="flex items-center gap-1.5 text-xs text-amber-700">
                 <ShieldAlert size={13} />
@@ -58,7 +65,7 @@ export default function ReportList({ locationId, userId, refreshKey }) {
             )}
             <div className="flex items-center gap-2">
               <button
-                onClick={() => vote(report.id, 1)}
+                onClick={() => vote(report, 1)}
                 disabled={voted || isOwn}
                 className="flex items-center gap-1 text-xs px-2 py-1 rounded border border-slate-200 text-emerald-700 disabled:opacity-40"
               >
@@ -66,7 +73,7 @@ export default function ReportList({ locationId, userId, refreshKey }) {
                 {report.confirmed}
               </button>
               <button
-                onClick={() => vote(report.id, -1)}
+                onClick={() => vote(report, -1)}
                 disabled={voted || isOwn}
                 className="flex items-center gap-1 text-xs px-2 py-1 rounded border border-slate-200 text-red-700 disabled:opacity-40"
               >

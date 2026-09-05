@@ -6,14 +6,42 @@ export const conditionColors = {
   none: "#64748b",
 }
 
-const severity = { blocked: 3, damaged: 2, unclear: 1, none: 1, usable: 0 }
+export const severity = { blocked: 3, damaged: 2, unclear: 1, none: 1, usable: 0 }
 
-const trackedFeatures = ["ramp", "elevator", "tactilePaving", "accessibleToilet"]
+export const trackedFeatures = ["ramp", "elevator", "tactilePaving", "accessibleToilet"]
+
+export const confirmationsRequired = 2
+
+export const freshnessDays = 30
+
+const emptyState = { condition: "unclear", confirmations: 0, lastVerified: null }
+
+export function featureState(location, key) {
+  const raw = location[key]
+  if (!raw) return { ...emptyState, stale: false, confirmed: false }
+
+  const stored = typeof raw === "string" ? { condition: raw, confirmations: 1 } : raw
+
+  const verifiedAt = stored.lastVerified ? stored.lastVerified.seconds * 1000 : null
+  const stale = verifiedAt !== null && Date.now() - verifiedAt > freshnessDays * 86400000
+
+  return {
+    condition: stored.condition,
+    confirmations: stored.confirmations ?? 1,
+    lastVerified: verifiedAt,
+    stale,
+    confirmed: (stored.confirmations ?? 1) >= confirmationsRequired && !stale,
+  }
+}
+
+export function isUpgrade(current, next) {
+  return severity[next] < severity[current]
+}
 
 export function worstCondition(location) {
   return trackedFeatures.reduce((worst, key) => {
-    const value = location[key]
-    return severity[value] > severity[worst] ? value : worst
+    const { condition } = featureState(location, key)
+    return severity[condition] > severity[worst] ? condition : worst
   }, "usable")
 }
 
@@ -24,4 +52,14 @@ export function pinIcon(condition) {
     <circle cx="14" cy="14" r="5.5" fill="#ffffff"/>
   </svg>`
   return `data:image/svg+xml,${encodeURIComponent(svg)}`
+}
+
+export function describeAge(lastVerified) {
+  if (!lastVerified) return "never verified"
+  const days = Math.floor((Date.now() - lastVerified) / 86400000)
+  if (days === 0) return "today"
+  if (days === 1) return "yesterday"
+  if (days < 30) return `${days} days ago`
+  const months = Math.round(days / 30)
+  return months === 1 ? "a month ago" : `${months} months ago`
 }

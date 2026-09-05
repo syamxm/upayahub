@@ -43,12 +43,21 @@ export default function App() {
   }, [])
 
   function applyReport(update) {
-    setPoints((current) => current + pointsPerReport)
     setReportKey((current) => current + 1)
-    if (!update) return
+    if (update?.reportId) setPoints((current) => current + pointsPerReport)
+    if (!update?.field) return
     setLocations((current) =>
       current.map((location) =>
-        location.id === selectedId ? { ...location, [update.field]: update.condition } : location
+        location.id === selectedId
+          ? {
+              ...location,
+              [update.field]: {
+                condition: update.condition,
+                confirmations: update.confirmations ?? 1,
+                lastVerified: { seconds: Date.now() / 1000 },
+              },
+            }
+          : location
       )
     )
   }
