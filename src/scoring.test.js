@@ -2,6 +2,7 @@ import { test } from "node:test"
 import assert from "node:assert/strict"
 import { accessibilityScore, scoreBand } from "./conditions.js"
 import { distanceKm, describeDistance } from "./distance.js"
+import { displayReporter } from "./reporter.js"
 
 const fresh = { seconds: Date.now() / 1000 }
 
@@ -53,4 +54,32 @@ test("distance is described in readable units", () => {
   assert.equal(describeDistance(0.4), "400 m away")
   assert.equal(describeDistance(2.34), "2.3 km away")
   assert.equal(describeDistance(18.6), "19 km away")
+})
+
+test("reporter name falls back for reports written before it was stored", () => {
+  assert.deepEqual(displayReporter({ reporterId: "abc" }), {
+    reporterName: "Someone",
+    reporterPhoto: null,
+  })
+})
+
+test("reporter photo is dropped once the name has been redacted", () => {
+  assert.deepEqual(displayReporter({ reporterPhoto: "https://example.test/a.jpg" }), {
+    reporterName: "Someone",
+    reporterPhoto: null,
+  })
+})
+
+test("a stored reporter name and photo are used as written", () => {
+  assert.deepEqual(
+    displayReporter({ reporterName: "Nurul", reporterPhoto: "https://example.test/n.jpg" }),
+    { reporterName: "Nurul", reporterPhoto: "https://example.test/n.jpg" }
+  )
+})
+
+test("a stored name without a photo is still shown", () => {
+  assert.deepEqual(displayReporter({ reporterName: "Nurul" }), {
+    reporterName: "Nurul",
+    reporterPhoto: null,
+  })
 })

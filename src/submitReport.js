@@ -1,5 +1,5 @@
 import { collection, addDoc, doc, updateDoc, setDoc, increment, serverTimestamp } from "firebase/firestore"
-import { db } from "./firebase"
+import { db, auth } from "./firebase"
 import { featureState, isUpgrade } from "./conditions"
 
 const featureFields = {
@@ -18,10 +18,13 @@ export async function submitReport(location, result, userId) {
   const heldForConfirmation =
     field !== undefined && !needsReview && isUpgrade(current, result.condition)
 
+  const reporter = auth.currentUser
   const report = await addDoc(collection(db, "reports"), {
     locationId: location.id,
     locationName: location.name,
     reporterId: userId,
+    reporterName: reporter?.displayName ?? null,
+    reporterPhoto: reporter?.photoURL ?? null,
     featureType: result.featureType,
     field: field ?? null,
     condition: result.condition,

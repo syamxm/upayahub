@@ -9,6 +9,7 @@ import {
   Timestamp,
 } from "firebase/firestore"
 import { db } from "./firebase"
+import { displayReporter } from "./reporter"
 
 export const feedSize = 50
 
@@ -40,27 +41,17 @@ export async function loadFeed() {
   const reports = found.docs.map((entry) => ({ id: entry.id, ...entry.data() }))
   if (reports.length === 0) return []
 
-  const [votes, users] = await Promise.all([
-    loadVotesFor(reports.map((report) => report.id)),
-    getDocs(collection(db, "users")),
-  ])
-
-  const reporters = {}
-  users.docs.forEach((user) => {
-    reporters[user.id] = user.data()
-  })
+  const votes = await loadVotesFor(reports.map((report) => report.id))
 
   return reports.map((report) => {
     const own = votes.filter((vote) => vote.reportId === report.id)
-    const reporter = reporters[report.reporterId]
     return {
       ...report,
+      ...displayReporter(report),
       status: reportStatus(report),
       confirmed: own.filter((vote) => vote.value === 1).length,
       disputed: own.filter((vote) => vote.value === -1).length,
       voters: own.map((vote) => vote.voterId),
-      reporterName: reporter?.name ?? "Someone",
-      reporterPhoto: reporter?.photo ?? null,
     }
   })
 }
