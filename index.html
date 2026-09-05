@@ -1,10 +1,27 @@
 <!doctype html>
-<html lang="en">
+<html lang="en-GB">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>upayahub</title>
+    <title>UpayaHub</title>
+    <meta name="description" content="Know before you go. Real-time, community-verified accessibility information for places across Kuala Lumpur." />
+    <meta name="theme-color" content="#2563eb" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#16294a" media="(prefers-color-scheme: dark)" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <script>
+      (function () {
+        try {
+          var saved = localStorage.getItem("upayahub-theme")
+          var system = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
+          document.documentElement.dataset.theme =
+            saved === "light" || saved === "dark" ? saved : system
+        } catch (error) {
+          document.documentElement.dataset.theme = "light"
+        }
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>
