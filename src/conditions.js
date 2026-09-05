@@ -63,3 +63,14 @@ export function describeAge(lastVerified) {
   const months = Math.round(days / 30)
   return months === 1 ? "a month ago" : `${months} months ago`
 }
+
+export const featureLabels = {
+  ramp: "Step-free / ramp",
+  elevator: "Working elevator",
+  tactilePaving: "Tactile paving",
+  accessibleToilet: "Accessible restroom",
+}
+
+export function matchesFilters(location, required) {
+  return required.every((key) => featureState(location, key).condition === "usable")
+}

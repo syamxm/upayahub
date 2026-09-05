@@ -9,7 +9,9 @@ import MapLegend from "./MapLegend"
 import SignIn from "./SignIn"
 import Avatar from "./Avatar"
 import Leaderboard from "./Leaderboard"
+import MapFilters from "./MapFilters"
 import { pointsPerReport } from "./submitReport"
+import { matchesFilters } from "./conditions"
 
 export default function App() {
   const [locations, setLocations] = useState([])
@@ -19,12 +21,14 @@ export default function App() {
   const [reportKey, setReportKey] = useState(0)
   const [showLeaderboard, setShowLeaderboard] = useState(false)
   const [checkingAuth, setCheckingAuth] = useState(true)
+  const [filters, setFilters] = useState([])
 
   useEffect(() => {
+    if (!user) return
     getDocs(collection(db, "locations")).then((snapshot) =>
       setLocations(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })))
     )
-  }, [])
+  }, [user])
 
   useEffect(() => {
     onAuthStateChanged(auth, async (account) => {
@@ -66,6 +70,13 @@ export default function App() {
   if (!user) return <SignIn />
 
   const selected = locations.find((location) => location.id === selectedId)
+  const visible = locations.filter((location) => matchesFilters(location, filters))
+
+  function toggleFilter(key) {
+    setFilters((current) =>
+      current.includes(key) ? current.filter((item) => item !== key) : [...current, key]
+    )
+  }
 
   return (
     <div className="h-screen flex flex-col">
@@ -86,8 +97,14 @@ export default function App() {
           <Avatar user={user} />
         </div>
       </header>
+      <MapFilters
+        active={filters}
+        onToggle={toggleFilter}
+        shown={visible.length}
+        total={locations.length}
+      />
       <main className="flex-1 relative">
-        <AccessibilityMap locations={locations} onSelect={(location) => setSelectedId(location.id)} />
+        <AccessibilityMap locations={visible} onSelect={(location) => setSelectedId(location.id)} />
         <MapLegend />
         {showLeaderboard && (
           <Leaderboard userId={user.uid} onClose={() => setShowLeaderboard(false)} />
