@@ -1,5 +1,6 @@
 import { X } from "lucide-react"
 import PhotoVerifier from "./PhotoVerifier"
+import ReportList from "./ReportList"
 
 const conditionStyles = {
   usable: "bg-emerald-100 text-emerald-800",
@@ -16,7 +17,7 @@ const features = [
   ["accessibleToilet", "Accessible toilet"],
 ]
 
-export default function LocationDetails({ location, userId, onClose, onReported }) {
+export default function LocationDetails({ location, userId, reportKey, onClose, onReported }) {
   return (
     <div className="absolute inset-x-4 bottom-4 z-10 bg-white rounded-lg shadow-lg p-4 space-y-3">
       <div className="flex items-start justify-between">
@@ -38,6 +39,7 @@ export default function LocationDetails({ location, userId, onClose, onReported 
           </li>
         ))}
       </ul>
+      <ReportList locationId={location.id} userId={userId} refreshKey={reportKey} />
       <PhotoVerifier location={location} userId={userId} onReported={onReported} />
     </div>
   )

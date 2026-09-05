@@ -41,6 +41,7 @@ service cloud.firestore {
     match /votes/{voteId} {
       allow read: if signedIn();
       allow create: if signedIn()
+        && voteId == request.resource.data.reportId + '_' + request.auth.uid
         && request.resource.data.voterId == request.auth.uid
         && request.resource.data.createdAt == request.time
         && request.resource.data.value in [1, -1];
