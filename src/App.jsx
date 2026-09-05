@@ -1,7 +1,10 @@
+import { useState } from "react"
 import AccessibilityMap from "./AccessibilityMap"
-import PhotoVerifier from "./PhotoVerifier"
+import LocationDetails from "./LocationDetails"
 
 export default function App() {
+  const [selected, setSelected] = useState(null)
+
   return (
     <div className="h-screen flex flex-col">
       <header className="p-4 bg-emerald-600 text-white">
@@ -9,8 +12,8 @@ export default function App() {
         <p className="text-sm text-emerald-50">Know Before You Go.</p>
       </header>
       <main className="flex-1 relative">
-        <AccessibilityMap />
-        <PhotoVerifier />
+        <AccessibilityMap onSelect={setSelected} />
+        {selected && <LocationDetails location={selected} onClose={() => setSelected(null)} />}
       </main>
     </div>
   )
