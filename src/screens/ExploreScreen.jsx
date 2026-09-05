@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Navigation, Search } from "lucide-react"
+import { Navigation, Search, Sparkles } from "lucide-react"
 import AccessibilityMap from "../AccessibilityMap"
 import LocationDetails from "../LocationDetails"
 import LocationList from "../LocationList"
@@ -22,6 +22,7 @@ export default function ExploreScreen({
   origin,
   onLocate,
   locating,
+  onOpenFeatures,
 }) {
   const [search, setSearch] = useState("")
   const [sheetOpen, setSheetOpen] = useState(false)
@@ -43,6 +44,14 @@ export default function ExploreScreen({
   return (
     <>
       <ScreenHeader title="UpayaHub" subtitle="Know before you go.">
+        <button
+          type="button"
+          onClick={onOpenFeatures}
+          className="tap inline-flex items-center gap-1.5 rounded-full bg-card px-3 py-2 text-micro font-bold text-primary shadow-raised"
+        >
+          <Sparkles size={14} aria-hidden="true" />
+          More features
+        </button>
         <button
           type="button"
           onClick={onLocate}
