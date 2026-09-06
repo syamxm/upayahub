@@ -39,7 +39,7 @@ export default function App() {
   const [checkingAuth, setCheckingAuth] = useState(true)
   const [filters, setFilters] = useState([])
   const [showAccount, setShowAccount] = useState(false)
-  const [tab, setTab] = useState("explore")
+  const [tab, setTab] = useState(() => tabs.find((entry) => entry.id === window.location.hash.slice(1))?.id ?? "explore")
   const [origin, setOrigin] = useState(null)
   const [locating, setLocating] = useState(false)
   const [locateError, setLocateError] = useState(null)
@@ -150,12 +150,13 @@ export default function App() {
   }
 
   function openTab(next) {
+    window.location.hash = next
     setTab(next)
   }
 
   function openLocation(locationId) {
     setSelectedId(locationId)
-    setTab("explore")
+    openTab("explore")
   }
 
   function toggleFilter(key) {
@@ -190,7 +191,7 @@ export default function App() {
       <AppShell nav={<MainNav items={tabs} active={tab} onChange={openTab} />}>
         <Suspense fallback={<ScreenLoading label="Loading community tools" />}>
           <FeaturesScreen
-          onBack={() => setTab("explore")}
+          onBack={() => openTab("explore")}
           locations={locations}
           points={points}
           reportCount={reportCount}
@@ -211,7 +212,7 @@ export default function App() {
       {alerts.length > 0 && (
         <button
           type="button"
-          onClick={() => setTab("features")}
+          onClick={() => openTab("features")}
           className="tap flex shrink-0 items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold text-[var(--primary-foreground)]"
           style={{ background: "var(--tone-danger-text)" }}
         >
