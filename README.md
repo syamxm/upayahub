@@ -58,8 +58,8 @@ A feature confirmed more than **30 days** ago is marked stale and drops back to 
 **Leaderboard and credibility**
 10 points per report submitted. The leaderboard ranks contributors by points and shows a credibility score — the percentage of your reports that the community confirmed rather than disputed.
 
-**CSV export**
-The Civic panel builds a ranked report for any location, worst conditions first, and downloads it as a CSV you can send to a council yourself.
+**Civic dispatch**
+The Civic panel ranks a location's reports worst-first, downloads them as CSV, and asks Gemini (via the `draftCouncilEmail` Cloud Function) to draft a formal complaint email to JKR with the CSV listed as an attachment. The compose screen is editable; "Send" is a prototype stub that issues a reference number and delivers nothing.
 
 **Account controls**
 Light/dark/system theme toggle. Account deletion that re-authenticates, strips your name and photo from every report you filed, and removes your user document.
@@ -78,7 +78,7 @@ These have finished UI and an explicit in-app TODO notice. They need server-side
 |---|---|
 | **SOS broadcast** | Finding nearby helpers, notifying them, tracking who responds. The button contacts nobody. |
 | **Helper side of SOS** | A volunteer accepting and navigating to someone in trouble. |
-| **Email to council** | Mail delivery, audit trail, reference numbers. The CSV download works today as a manual substitute. |
+| **Email to council** | Real mail delivery and an audit trail. Gemini drafting and the compose screen work; the send button is a stub. |
 
 ---
 

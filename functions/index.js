@@ -116,3 +116,57 @@ export const checkPhoto = onCall(
     }
   }
 )
+
+const emailInstruction = `You draft a formal complaint email from UpayaHub, a community accessibility map, to
+Jabatan Kerja Raya (JKR) Malaysia about accessibility defects at one location. Use the ranked
+report list given as JSON. Be polite, specific and short: one opening paragraph, a bullet per
+defect (feature, condition, how many people confirmed it), and a closing request for inspection
+and a reference number. Mention that a CSV of the reports is attached. Do not invent facts not
+in the data. Sign off as "UpayaHub community". Plain text, no markdown.`
+
+const emailSchema = {
+  type: Type.OBJECT,
+  properties: { subject: { type: Type.STRING }, body: { type: Type.STRING } },
+  required: ["subject", "body"],
+}
+
+function readEscalation(data) {
+  const name = typeof data?.location?.name === "string" ? data.location.name.slice(0, 200) : ""
+  const reports = Array.isArray(data?.reports) ? data.reports.slice(0, 30) : []
+  if (!name || reports.length === 0) {
+    throw new HttpsError("invalid-argument", "Location name and at least one report are required.")
+  }
+  return {
+    location: { name, category: String(data.location.category ?? "").slice(0, 100) },
+    reports: reports.map((report) => ({
+      feature: String(report.feature ?? "").slice(0, 40),
+      condition: String(report.condition ?? "").slice(0, 20),
+      summary: String(report.summary ?? "").slice(0, 300),
+      confirmed: Number(report.confirmed) || 0,
+      disputed: Number(report.disputed) || 0,
+    })),
+  }
+}
+
+export const draftCouncilEmail = onCall(
+  { secrets: [geminiApiKey], cors: allowedOrigins, enforceAppCheck: false },
+  async (request) => {
+    if (!request.auth) throw new HttpsError("unauthenticated", "Sign in to draft an email.")
+
+    const escalation = readEscalation(request.data)
+    await enforceRateLimit(request.auth.uid)
+
+    const ai = new GoogleGenAI({ apiKey: geminiApiKey.value() })
+    try {
+      const response = await ai.models.generateContent({
+        model: "gemini-3.1-flash-lite",
+        contents: [{ parts: [{ text: emailInstruction }, { text: JSON.stringify(escalation) }] }],
+        config: { responseMimeType: "application/json", responseSchema: emailSchema },
+      })
+      return JSON.parse(response.text)
+    } catch (error) {
+      console.error("gemini email draft failed", error)
+      throw new HttpsError("internal", "Could not draft the email. Please try again.")
+    }
+  }
+)
