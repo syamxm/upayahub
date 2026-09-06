@@ -41,6 +41,7 @@ export default function App() {
   const [tab, setTab] = useState("explore")
   const [origin, setOrigin] = useState(null)
   const [locating, setLocating] = useState(false)
+  const [locateError, setLocateError] = useState(null)
   const [showFeatures, setShowFeatures] = useState(false)
   const [alerts, setAlerts] = useState([])
   const [adminRoute, setAdminRoute] = useState(() => window.location.hash === "#admin")
@@ -120,14 +121,25 @@ export default function App() {
   }
 
   function locate() {
-    if (!navigator.geolocation) return
+    if (!navigator.geolocation) {
+      setLocateError("Location is not available in this browser.")
+      return
+    }
+    setLocateError(null)
     setLocating(true)
     navigator.geolocation.getCurrentPosition(
       (position) => {
         setOrigin({ lat: position.coords.latitude, lng: position.coords.longitude })
         setLocating(false)
       },
-      () => setLocating(false),
+      (failure) => {
+        setLocateError(
+          failure.code === failure.PERMISSION_DENIED
+            ? "Location access was blocked. Allow it in your browser settings and try again."
+            : "Could not find your location. Try again."
+        )
+        setLocating(false)
+      },
       { enableHighAccuracy: true, timeout: 10000 }
     )
   }
@@ -225,6 +237,7 @@ export default function App() {
             origin={origin}
             onLocate={locate}
             locating={locating}
+            locateError={locateError}
             onOpenFeatures={() => setShowFeatures(true)}
             status={locationsStatus}
             onRetry={reloadLocations}

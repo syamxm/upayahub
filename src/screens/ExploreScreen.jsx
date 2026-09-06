@@ -26,6 +26,7 @@ export default function ExploreScreen({
   origin,
   onLocate,
   locating,
+  locateError,
   onOpenFeatures,
   status,
   onRetry,
@@ -80,7 +81,11 @@ export default function ExploreScreen({
           aria-label={origin ? "Update your location" : "Show distances from where you are"}
           className="tap grid place-items-center rounded-full text-[var(--header-foreground)] hover:bg-[var(--header-surface)] disabled:opacity-50"
         >
-          <Navigation size={18} aria-hidden="true" />
+          {locating ? (
+            <Spinner label="Finding you" size={18} />
+          ) : (
+            <Navigation size={18} aria-hidden="true" />
+          )}
         </button>
       </ScreenHeader>
 
@@ -122,8 +127,16 @@ export default function ExploreScreen({
               </div>
             }
           >
-            <AccessibilityMap locations={listed} onSelect={onSelect} />
+            <AccessibilityMap locations={listed} onSelect={onSelect} origin={origin} />
           </Suspense>
+          {locateError && (
+            <p
+              role="alert"
+              className="absolute left-3 right-3 top-3 z-10 rounded-control bg-card px-3 py-2 text-sm text-foreground shadow-raised"
+            >
+              {locateError}
+            </p>
+          )}
           <MapLegend />
 
           <BottomSheet
