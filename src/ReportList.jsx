@@ -13,7 +13,7 @@ function timeAgo(createdAt) {
   return `${Math.round(minutes / 1440)}d ago`
 }
 
-function VoteButton({ icon: Icon, count, label, tone, ...props }) {
+export function VoteButton({ icon: Icon, count, label, tone, ...props }) {
   return (
     <button
       type="button"

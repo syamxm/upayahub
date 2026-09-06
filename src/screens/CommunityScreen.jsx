@@ -6,6 +6,8 @@ import Pill from "../ui/Pill"
 import ScreenHeader from "../ui/ScreenHeader"
 import { conditionLabels, conditionTones } from "../conditions"
 import { loadCommunityStats, loadFeed } from "../feed"
+import { castVote } from "../votes"
+import { VoteButton } from "../ReportList"
 
 const statuses = {
   onMap: { label: "On the map", tone: "success", icon: CheckCircle },
@@ -42,7 +44,7 @@ function Stat({ label, value }) {
   )
 }
 
-export default function CommunityScreen({ onOpenLocation }) {
+export default function CommunityScreen({ userId, onOpenLocation, onConfirmed }) {
   const [feed, setFeed] = useState(null)
   const [stats, setStats] = useState(null)
   const [error, setError] = useState("")
@@ -63,6 +65,23 @@ export default function CommunityScreen({ onOpenLocation }) {
       active = false
     }
   }, [])
+
+  async function vote(report, value) {
+    setFeed((current) =>
+      current.map((entry) =>
+        entry.id === report.id
+          ? {
+              ...entry,
+              voters: [...entry.voters, userId],
+              confirmed: entry.confirmed + (value === 1 ? 1 : 0),
+              disputed: entry.disputed + (value === -1 ? 1 : 0),
+            }
+          : entry
+      )
+    )
+    const promoted = await castVote(report, userId, value)
+    if (promoted) onConfirmed(promoted, report.locationId)
+  }
 
   const shown = feed?.filter((report) => filter === "all" || report.status === filter) ?? []
 
@@ -130,6 +149,8 @@ export default function CommunityScreen({ onOpenLocation }) {
               {shown.map((report) => {
                 const status = statuses[report.status]
                 const StatusIcon = status.icon
+                const voted = report.voters.includes(userId)
+                const isOwn = report.reporterId === userId
                 return (
                   <li key={report.id}>
                     <Card padded={false}>
@@ -174,17 +195,23 @@ export default function CommunityScreen({ onOpenLocation }) {
 
                       <p className="px-4 pb-3 text-sm leading-relaxed">{report.summary}</p>
 
-                      <div className="flex items-center gap-4 border-t border-border px-4 py-3 text-micro text-muted-foreground">
-                        <span className="flex items-center gap-1.5">
-                          <ThumbsUp size={13} aria-hidden="true" />
-                          {report.confirmed}
-                          <span className="sr-only">people confirmed this</span>
-                        </span>
-                        <span className="flex items-center gap-1.5">
-                          <ThumbsDown size={13} aria-hidden="true" />
-                          {report.disputed}
-                          <span className="sr-only">people disputed this</span>
-                        </span>
+                      <div className="flex items-center gap-2 border-t border-border px-4 py-3 text-micro text-muted-foreground">
+                        <VoteButton
+                          icon={ThumbsUp}
+                          tone="success"
+                          count={report.confirmed}
+                          label={`Confirm this report. ${report.confirmed} people agree`}
+                          onClick={() => vote(report, 1)}
+                          disabled={voted || isOwn}
+                        />
+                        <VoteButton
+                          icon={ThumbsDown}
+                          tone="danger"
+                          count={report.disputed}
+                          label={`Dispute this report. ${report.disputed} people disagree`}
+                          onClick={() => vote(report, -1)}
+                          disabled={voted || isOwn}
+                        />
                         <button
                           type="button"
                           onClick={() => onOpenLocation(report.locationId)}
