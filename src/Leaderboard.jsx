@@ -75,14 +75,15 @@ export default function Leaderboard({ userId, onClose }) {
                     {isYou && <span className="ml-1 text-primary">(you)</span>}
                   </p>
                   <p className="text-micro text-muted-foreground">
-                    {entry.reportCount} {entry.reportCount === 1 ? "report" : "reports"}
+                    {entry.reportCount} {entry.reportCount === 1 ? "report" : "reports"}, {entry.points}{" "}
+                    points
                     {entry.credibility !== null &&
                       `, ${entry.credibility}% confirmed by ${entry.votesReceived}`}
                   </p>
                 </div>
                 <span className="flex shrink-0 items-center gap-1 text-sm font-semibold text-primary">
                   <Award size={15} aria-hidden="true" />
-                  {entry.points}
+                  {entry.reportCount} EXP
                 </span>
               </li>
             )

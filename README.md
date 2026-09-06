@@ -67,6 +67,9 @@ Light/dark/system theme toggle. Account deletion that re-authenticates, strips y
 **Google sign-in**
 Firebase Auth with a Google popup. Reports carry your name and photo so credibility accrues to a real identity.
 
+**Rewards and vouchers**
+Every report earns 1 EXP and 10 points. EXP ranks the leaderboard and never drops. Points are spent on partner vouchers (local businesses and councils) in Community tools → Rewards; a redemption issues a code into your wallet. Vouchers are added through a prototype admin page at `/#admin`.
+
 ### Not built yet
 
 These have finished UI and an explicit in-app TODO notice. They need server-side work nobody has written:
@@ -75,8 +78,6 @@ These have finished UI and an explicit in-app TODO notice. They need server-side
 |---|---|
 | **SOS broadcast** | Finding nearby helpers, notifying them, tracking who responds. The button contacts nobody. |
 | **Helper side of SOS** | A volunteer accepting and navigating to someone in trouble. |
-| **Rewards catalogue** | Partner vouchers, stock levels, redeeming points, issuing codes. Nothing is redeemable. |
-| **Voucher wallet** | Storing redeemed vouchers, expiry dates, QR codes. |
 | **Email to council** | Mail delivery, audit trail, reference numbers. The CSV download works today as a manual substitute. |
 
 ---
@@ -145,7 +146,9 @@ wrangler.jsonc            Cloudflare Workers static-asset config
 | `locations` | `name`, `category`, `lat`, `lng`, and per-feature objects `ramp` / `elevator` / `tactilePaving` / `accessibleToilet` = `{ condition, confirmations, lastVerified, sourceReportId }` |
 | `reports` | `locationId`, `locationName`, `reporterId`, `reporterName`, `reporterPhoto`, `featureType`, `field`, `condition`, `confidence`, `summary`, `looksSynthetic`, `syntheticConfidence`, `needsReview`, `pending`, `createdAt` |
 | `votes` | doc id is `{reportId}_{userId}`; fields `reportId`, `voterId`, `value` (1 or -1), `createdAt` |
-| `users` | `name`, `photo`, `points`, `reportCount`, `lastReportId` |
+| `users` | `name`, `photo`, `points`, `reportCount`, `lastReportId`, `lastRedemptionId` |
+| `users/{uid}/redemptions` | `voucherId`, `partner`, `title`, `code`, `cost`, `createdAt`. Owner-only. |
+| `vouchers` | `partner`, `title`, `description`, `cost`, `createdAt`. Written only by the admin account. |
 | `photoCheckLimits` | Per-user rate-limit counters. Written only by the Cloud Function; **closed to all clients**. |
 
 ### What the rules enforce
@@ -155,6 +158,8 @@ wrangler.jsonc            Cloudflare Workers static-asset config
 - **Votes** are create-only, one per person per report, cannot be cast on your own report, and cannot be edited or deleted.
 - **Locations** change only on the four feature fields, and only when backed by a real report whose condition matches.
 - **Points** require a fresh report you actually own. The user document stores `lastReportId`; a points write must reference a report that exists, belongs to you, and differs from the one already recorded — so the same write cannot be replayed for free points.
+- **Vouchers** can only be created or deleted by the account whose email is `admin_upayahub@upayahub.app`.
+- **Redemptions** are written in one batch with the points deduction. The redemption must copy the voucher's real cost, and the user document must point at it via `lastRedemptionId` in the same batch — neither half can land alone, and points cannot go negative.
 - Everything not explicitly matched is denied by a catch-all rule.
 
 Known limits, so nobody is surprised: the `+10` points value is hardcoded in the rules and duplicated in `conditions.js`, and rules cannot judge photo *quality* — only that a real report exists. Moving the report write into the Cloud Function would close that.
@@ -289,7 +294,13 @@ The rules deliberately forbid creating locations from the app (`allow create: if
 
 Feature fields are optional — anything absent shows as "No reports yet" and gets filled in by the first verified report.
 
-### 9. Run it
+### 9. Create the admin account (for vouchers)
+
+In **Authentication → Sign-in method**, enable **Email/Password**. Then in **Authentication → Users → Add user**, create `admin_upayahub@upayahub.app` with password `pwd12345678`. The rules gate voucher writes on that exact email.
+
+Open `/#admin`, sign in with username `admin_upayahub` and that password, and either add vouchers by hand or press **Add samples** for three fake partners.
+
+### 10. Run it
 
 ```bash
 npm run dev

@@ -5,7 +5,7 @@ import {
   assertFails,
 } from "@firebase/rules-unit-testing"
 import { readFileSync } from "node:fs"
-import { doc, setDoc, updateDoc, getDoc, deleteDoc, deleteField, serverTimestamp, increment } from "firebase/firestore"
+import { doc, setDoc, updateDoc, getDoc, deleteDoc, deleteField, serverTimestamp, increment, writeBatch } from "firebase/firestore"
 
 let env
 
@@ -199,4 +199,51 @@ test("locations only change with a backing report", async () => {
       ramp: { condition: "usable", confirmations: 1, lastVerified: serverTimestamp(), sourceReportId: "r1" },
     })
   )
+})
+
+const admin = () =>
+  env.authenticatedContext("admin", { email: "admin_upayahub@upayahub.app" }).firestore()
+
+const voucher = { partner: "Kopi", title: "RM5 off", description: "d", cost: 30, createdAt: serverTimestamp() }
+
+test("only the admin account manages vouchers", async () => {
+  await assertFails(setDoc(doc(as(alice), "vouchers/v1"), voucher))
+  await assertSucceeds(setDoc(doc(admin(), "vouchers/v1"), voucher))
+  await assertFails(setDoc(doc(admin(), "vouchers/v2"), { ...voucher, cost: 0 }))
+  await assertFails(setDoc(doc(admin(), "vouchers/v3"), { ...voucher, cost: 1.5 }))
+  await assertSucceeds(getDoc(doc(as(alice), "vouchers/v1")))
+  await assertFails(deleteDoc(doc(as(alice), "vouchers/v1")))
+  await assertSucceeds(deleteDoc(doc(admin(), "vouchers/v1")))
+})
+
+test("redeeming a voucher spends exactly its cost in one batch", async () => {
+  await env.withSecurityRulesDisabled(async (context) => {
+    const db = context.firestore()
+    await setDoc(doc(db, "vouchers/v1"), { ...voucher, createdAt: new Date() })
+    await setDoc(doc(db, "users/alice"), { name: "Alice", points: 50, reportCount: 5 })
+  })
+  const redemption = (overrides = {}) => ({
+    voucherId: "v1", partner: "Kopi", title: "RM5 off", code: "UH-ABC123", cost: 30,
+    createdAt: serverTimestamp(), ...overrides,
+  })
+  const spend = (db, uid, id, extra = {}) => {
+    const batch = writeBatch(db)
+    batch.set(doc(db, `users/${uid}/redemptions/${id}`), redemption(extra))
+    batch.update(doc(db, `users/${uid}`), { points: increment(-30), lastRedemptionId: id })
+    return batch.commit()
+  }
+
+  // redemption without the points deduction
+  await assertFails(setDoc(doc(as(alice), "users/alice/redemptions/x"), redemption()))
+  // deduction without the redemption
+  await assertFails(updateDoc(doc(as(alice), "users/alice"), { points: increment(-30), lastRedemptionId: "x" }))
+  // lying about the cost
+  await assertFails(spend(as(alice), alice, "x", { cost: 1 }))
+  // someone else's wallet
+  await assertFails(spend(as(bob), alice, "x"))
+
+  await assertSucceeds(spend(as(alice), alice, "x"))
+  // same redemption id again, and then not enough points
+  await assertFails(spend(as(alice), alice, "x"))
+  await assertFails(spend(as(alice), alice, "y"))
 })
