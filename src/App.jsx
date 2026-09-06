@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from "react"
 import { onAuthStateChanged } from "firebase/auth"
-import { AlertCircle, Map, User, Users } from "lucide-react"
+import { AlertCircle, Map, Radio, User, Users } from "lucide-react"
 import { auth } from "./firebase"
 import SignIn from "./SignIn"
 import AppShell from "./ui/AppShell"
@@ -42,6 +42,7 @@ export default function App() {
   const [origin, setOrigin] = useState(null)
   const [locating, setLocating] = useState(false)
   const [showFeatures, setShowFeatures] = useState(false)
+  const [alerts, setAlerts] = useState([])
   const [adminRoute, setAdminRoute] = useState(() => window.location.hash === "#admin")
 
   useEffect(() => {
@@ -67,6 +68,22 @@ export default function App() {
       active = false
     }
   }, [user, reloadKey])
+
+  useEffect(() => {
+    if (!user) return
+    let stop = () => {}
+    import("./sos").then(({ watchAlerts }) => {
+      stop = watchAlerts(user.uid, (next) => {
+        setAlerts((current) => {
+          if (next.length > current.length && document.hidden && window.Notification?.permission === "granted") {
+            new Notification("UpayaHub SOS", { body: `${next[0].situation} — someone within 2 km needs help` })
+          }
+          return next
+        })
+      })
+    })
+    return () => stop()
+  }, [user])
 
   useEffect(() => {
     onAuthStateChanged(auth, async (account) => {
@@ -169,6 +186,7 @@ export default function App() {
           reportCount={reportCount}
           userId={user.uid}
           onRedeem={(cost) => setPoints((current) => current - cost)}
+          alerts={alerts}
           origin={origin}
             onLocate={locate}
             locating={locating}
@@ -180,6 +198,17 @@ export default function App() {
 
   return (
     <AppShell nav={<MainNav items={tabs} active={tab} onChange={openTab} />}>
+      {alerts.length > 0 && (
+        <button
+          type="button"
+          onClick={() => setShowFeatures(true)}
+          className="tap flex shrink-0 items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold text-[var(--primary-foreground)]"
+          style={{ background: "var(--tone-danger-text)" }}
+        >
+          <Radio size={16} aria-hidden="true" />
+          SOS: {alerts.length === 1 ? "someone" : `${alerts.length} people`} within 2 km need help. Tap to respond.
+        </button>
+      )}
       <Suspense fallback={<ScreenLoading label="Loading" />}>
         {tab === "explore" && (
           <ExploreScreen

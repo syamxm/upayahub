@@ -201,6 +201,54 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    match /sosLimits/{userId} {
+      allow read, write: if false;
+    }
+
+    match /helpers/{userId} {
+      allow read: if isOwner(userId);
+      allow create, update: if isOwner(userId)
+        && request.resource.data.keys().hasOnly(['lat', 'lng', 'updatedAt'])
+        && request.resource.data.lat is number
+        && request.resource.data.lat >= -90 && request.resource.data.lat <= 90
+        && request.resource.data.lng is number
+        && request.resource.data.lng >= -180 && request.resource.data.lng <= 180
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if isOwner(userId);
+    }
+
+    function isRequester() {
+      return resource.data.requesterId == request.auth.uid;
+    }
+
+    function isAlerted() {
+      return request.auth.uid in resource.data.alertedIds;
+    }
+
+    function cancelsOwnSos() {
+      return isRequester()
+        && changed().hasOnly(['cancelled'])
+        && request.resource.data.cancelled == true;
+    }
+
+    function acceptsSos() {
+      return isAlerted()
+        && resource.data.helperId == null
+        && resource.data.cancelled == false
+        && resource.data.expiresAt > request.time
+        && changed().hasOnly(['helperId', 'helperName'])
+        && request.resource.data.helperId == request.auth.uid
+        && (request.resource.data.helperName == null
+          || (request.resource.data.helperName is string
+            && request.resource.data.helperName.size() <= 100));
+    }
+
+    match /sos/{sosId} {
+      allow read: if signedIn() && (isRequester() || isAlerted());
+      allow update: if signedIn() && (cancelsOwnSos() || acceptsSos());
+      allow create, delete: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

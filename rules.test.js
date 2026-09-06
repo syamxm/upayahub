@@ -247,3 +247,41 @@ test("redeeming a voucher spends exactly its cost in one batch", async () => {
   await assertFails(spend(as(alice), alice, "x"))
   await assertFails(spend(as(alice), alice, "y"))
 })
+
+test("helpers doc is owner-only with sane coordinates", async () => {
+  await assertSucceeds(setDoc(doc(as(alice), "helpers/alice"), { lat: 3.1, lng: 101.7, updatedAt: serverTimestamp() }))
+  await assertFails(setDoc(doc(as(alice), "helpers/alice"), { lat: 300, lng: 101.7, updatedAt: serverTimestamp() }))
+  await assertFails(setDoc(doc(as(bob), "helpers/alice"), { lat: 3.1, lng: 101.7, updatedAt: serverTimestamp() }))
+  await assertFails(getDoc(doc(as(bob), "helpers/alice")))
+  await assertSucceeds(deleteDoc(doc(as(alice), "helpers/alice")))
+})
+
+test("sos is visible only to requester and alerted helpers, accepted once, cancelled by owner", async () => {
+  const sos = {
+    requesterId: alice, requesterName: "Alice", situation: "Fallen, need physical help", note: "",
+    lat: 3.1, lng: 101.7, alertedIds: [bob], helperId: null, helperName: null, cancelled: false,
+    createdAt: new Date(), expiresAt: new Date(Date.now() + 600000),
+  }
+  await env.withSecurityRulesDisabled(async (context) => {
+    const db = context.firestore()
+    await setDoc(doc(db, "sos/s1"), sos)
+    await setDoc(doc(db, "sos/s2"), { ...sos, expiresAt: new Date(Date.now() - 1000) })
+  })
+  const carol = env.authenticatedContext("carol").firestore()
+
+  await assertFails(setDoc(doc(as(alice), "sos/forged"), sos))
+  await assertSucceeds(getDoc(doc(as(alice), "sos/s1")))
+  await assertSucceeds(getDoc(doc(as(bob), "sos/s1")))
+  await assertFails(getDoc(doc(carol, "sos/s1")))
+
+  await assertFails(updateDoc(doc(carol, "sos/s1"), { helperId: "carol", helperName: "Carol" }))
+  await assertFails(updateDoc(doc(as(bob), "sos/s1"), { helperId: alice, helperName: "Bob" }))
+  await assertFails(updateDoc(doc(as(bob), "sos/s2"), { helperId: bob, helperName: "Bob" }))
+  await assertSucceeds(updateDoc(doc(as(bob), "sos/s1"), { helperId: bob, helperName: "Bob" }))
+  await assertFails(updateDoc(doc(as(bob), "sos/s1"), { helperId: bob, helperName: "Bob again" }))
+
+  await assertFails(updateDoc(doc(as(bob), "sos/s1"), { cancelled: true }))
+  await assertFails(updateDoc(doc(as(alice), "sos/s1"), { note: "edited" }))
+  await assertSucceeds(updateDoc(doc(as(alice), "sos/s1"), { cancelled: true }))
+  await assertFails(deleteDoc(doc(as(alice), "sos/s1")))
+})

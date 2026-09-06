@@ -17,7 +17,7 @@ Wheelchair users, blind travellers, and parents with strollers across Malaysia r
 | Google sign-in | Working |
 | Firestore security rules | Hardened, 14 emulator tests |
 | Production deploy | Live on Cloudflare Workers |
-| SOS broadcast | **UI only — no backend** |
+| SOS broadcast | Working (in-app alerts, 2 km, 10 min, 3/day) |
 | Rewards / vouchers | **UI only — no backend** |
 | Email report to council | **UI only — CSV download works** |
 
@@ -67,6 +67,9 @@ Light/dark/system theme toggle. Account deletion that re-authenticates, strips y
 **Google sign-in**
 Firebase Auth with a Google popup. Reports carry your name and photo so credibility accrues to a real identity.
 
+**SOS broadcast**
+Share your location, pick what is happening, tap Broadcast. The `sendSos` Cloud Function enforces 3 alerts per account per day, finds opted-in helpers within 2 km, and creates an SOS document that only the requester and those helpers can read. It lasts 10 minutes. Helpers see a red banner anywhere in the app, can tap "I'm on my way" (first one wins) and open the spot in Google Maps; the requester sees who is coming and can cancel.
+
 **Rewards and vouchers**
 Every report earns 1 EXP and 10 points. EXP ranks the leaderboard and never drops. Points are spent on partner vouchers (local businesses and councils) in Community tools → Rewards; a redemption issues a code into your wallet. Vouchers are added through a prototype admin page at `/#admin`.
 
@@ -76,8 +79,7 @@ These have finished UI and an explicit in-app TODO notice. They need server-side
 
 | Feature | What's missing |
 |---|---|
-| **SOS broadcast** | Finding nearby helpers, notifying them, tracking who responds. The button contacts nobody. |
-| **Helper side of SOS** | A volunteer accepting and navigating to someone in trouble. |
+| **SOS push notifications** | Alerts reach helpers only while the app is open (plus a browser notification if the tab is in the background). Real push needs FCM and a service worker. |
 | **Email to council** | Real mail delivery and an audit trail. Gemini drafting and the compose screen work; the send button is a stub. |
 
 ---
@@ -150,6 +152,9 @@ wrangler.jsonc            Cloudflare Workers static-asset config
 | `users/{uid}/redemptions` | `voucherId`, `partner`, `title`, `code`, `cost`, `createdAt`. Owner-only. |
 | `vouchers` | `partner`, `title`, `description`, `cost`, `createdAt`. Written only by the admin account. |
 | `photoCheckLimits` | Per-user rate-limit counters. Written only by the Cloud Function; **closed to all clients**. |
+| `sosLimits` | Per-user daily SOS counters. Function-only; **closed to all clients**. |
+| `helpers` | `lat`, `lng`, `updatedAt` for users who opted in to help. Owner read/write only; the function reads them. |
+| `sos` | `requesterId`, `requesterName`, `situation`, `note`, `lat`, `lng`, `alertedIds`, `helperId`, `helperName`, `cancelled`, `createdAt`, `expiresAt`. Created only by the function. |
 
 ### What the rules enforce
 
@@ -160,6 +165,7 @@ wrangler.jsonc            Cloudflare Workers static-asset config
 - **Points** require a fresh report you actually own. The user document stores `lastReportId`; a points write must reference a report that exists, belongs to you, and differs from the one already recorded — so the same write cannot be replayed for free points.
 - **Vouchers** can only be created or deleted by the account whose email is `admin_upayahub@upayahub.app`.
 - **Redemptions** are written in one batch with the points deduction. The redemption must copy the voucher's real cost, and the user document must point at it via `lastRedemptionId` in the same batch — neither half can land alone, and points cannot go negative.
+- **SOS** docs are readable only by the requester and the helpers the function listed in `alertedIds`. An alerted helper may set `helperId` to their own uid once, while the SOS is live and unclaimed; the requester may only set `cancelled`. Nobody else can read the location.
 - Everything not explicitly matched is denied by a catch-all rule.
 
 Known limits, so nobody is surprised: the `+10` points value is hardcoded in the rules and duplicated in `conditions.js`, and rules cannot judge photo *quality* — only that a real report exists. Moving the report write into the Cloud Function would close that.

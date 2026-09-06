@@ -170,3 +170,84 @@ export const draftCouncilEmail = onCall(
     }
   }
 )
+
+// ---- SOS ----
+
+const sosRadiusKm = 2
+const sosDurationMs = 10 * 60 * 1000
+const sosPerDay = 3
+const helperStaleMs = 24 * 60 * 60 * 1000
+const situations = [
+  "Trapped or broken lift",
+  "Blocked wheelchair path",
+  "Fallen, need physical help",
+  "Other obstacle",
+]
+
+function distanceKm(from, to) {
+  const rad = (deg) => (deg * Math.PI) / 180
+  const a =
+    Math.sin(rad(to.lat - from.lat) / 2) ** 2 +
+    Math.cos(rad(from.lat)) * Math.cos(rad(to.lat)) * Math.sin(rad(to.lng - from.lng) / 2) ** 2
+  return 6371 * 2 * Math.asin(Math.min(1, Math.sqrt(a)))
+}
+
+function readSos(data) {
+  const lat = Number(data?.lat)
+  const lng = Number(data?.lng)
+  if (!situations.includes(data?.situation)) {
+    throw new HttpsError("invalid-argument", "Pick what is happening.")
+  }
+  if (!(lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180)) {
+    throw new HttpsError("invalid-argument", "Share your location before sending an SOS.")
+  }
+  return { situation: data.situation, note: String(data.note ?? "").slice(0, 300), lat, lng }
+}
+
+// ponytail: day boundary is UTC, not Malaysia time. Switch to Asia/Kuala_Lumpur if anyone notices.
+async function enforceSosLimit(uid) {
+  const limitDoc = getFirestore().collection("sosLimits").doc(uid)
+  const today = new Date().toISOString().slice(0, 10)
+  await getFirestore().runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(limitDoc)
+    const count = snapshot.get("day") === today ? (snapshot.get("count") ?? 0) : 0
+    if (count >= sosPerDay) {
+      throw new HttpsError("resource-exhausted", `You can send ${sosPerDay} SOS alerts a day.`)
+    }
+    transaction.set(limitDoc, { day: today, count: count + 1 })
+  })
+}
+
+export const sendSos = onCall({ cors: allowedOrigins, enforceAppCheck: false }, async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Sign in to send an SOS.")
+
+  const sos = readSos(request.data)
+  await enforceSosLimit(request.auth.uid)
+
+  // ponytail: full scan of helpers. Geohash range query once helpers outnumber a few thousand.
+  const helpers = await getFirestore().collection("helpers").get()
+  const cutoff = Date.now() - helperStaleMs
+  const alertedIds = helpers.docs
+    .filter(
+      (helper) =>
+        helper.id !== request.auth.uid &&
+        (helper.get("updatedAt")?.toMillis() ?? 0) > cutoff &&
+        distanceKm(sos, { lat: helper.get("lat"), lng: helper.get("lng") }) <= sosRadiusKm
+    )
+    .map((helper) => helper.id)
+
+  const expiresAt = new Date(Date.now() + sosDurationMs)
+  const created = await getFirestore().collection("sos").add({
+    ...sos,
+    requesterId: request.auth.uid,
+    requesterName: request.auth.token.name ?? null,
+    alertedIds,
+    helperId: null,
+    helperName: null,
+    cancelled: false,
+    createdAt: FieldValue.serverTimestamp(),
+    expiresAt,
+  })
+
+  return { id: created.id, alerted: alertedIds.length, expiresAt: expiresAt.getTime() }
+})
