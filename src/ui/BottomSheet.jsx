@@ -42,7 +42,7 @@ export default function BottomSheet({ title, expanded, onToggle, children }) {
     <section
       aria-label={title}
       className={`absolute inset-x-0 bottom-0 z-10 flex flex-col rounded-t-hero border border-border bg-card shadow-float transition-[height] duration-200 md:hidden ${
-        expanded ? "h-[70%]" : "h-32"
+        expanded ? "h-[70%]" : "h-16"
       }`}
     >
       <button
@@ -65,7 +65,9 @@ export default function BottomSheet({ title, expanded, onToggle, children }) {
           )}
         </span>
       </button>
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">{children}</div>
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4" hidden={!expanded}>
+        {children}
+      </div>
     </section>
   )
 }
