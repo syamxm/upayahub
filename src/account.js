@@ -23,7 +23,10 @@ async function redactReports(userId) {
 }
 
 export async function deleteAccount(user) {
-  await reauthenticateWithPopup(user, new GoogleAuthProvider())
+  // Firebase needs a recent sign-in before deleteUser; hint keeps Google on the same account.
+  const provider = new GoogleAuthProvider()
+  provider.setCustomParameters({ login_hint: user.email })
+  await reauthenticateWithPopup(user, provider)
   await redactReports(user.uid)
   await deleteDoc(doc(db, "users", user.uid))
   await deleteUser(user)
