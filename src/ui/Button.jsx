@@ -13,6 +13,7 @@ const sizes = {
 }
 
 export default function Button({
+  as: Tag = "button",
   variant = "primary",
   size = "md",
   full = false,
@@ -21,8 +22,8 @@ export default function Button({
   ...props
 }) {
   return (
-    <button
-      type={type}
+    <Tag
+      type={Tag === "button" ? type : undefined}
       className={`tap inline-flex items-center justify-center gap-2 rounded-control font-semibold transition-[filter,background-color,transform] duration-150 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-45 ${variants[variant]} ${sizes[size]} ${full ? "w-full" : ""} ${className}`}
       {...props}
     />

@@ -18,6 +18,7 @@ export default function FeaturesScreen({
   reportCount,
   userId,
   onRedeem,
+  alerts,
   origin,
   onLocate,
   locating,
@@ -65,7 +66,7 @@ export default function FeaturesScreen({
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto w-full max-w-2xl px-4 py-4">
           {panel === "sos" && (
-            <SosPanel origin={origin} onLocate={onLocate} locating={locating} />
+            <SosPanel origin={origin} onLocate={onLocate} locating={locating} userId={userId} alerts={alerts} />
           )}
           {panel === "civic" && <CivicPanel locations={locations} origin={origin} />}
           {panel === "rewards" && (
