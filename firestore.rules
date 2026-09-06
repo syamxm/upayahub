@@ -80,7 +80,7 @@ service cloud.firestore {
         && report.createdAt == request.time
         && report.locationId is string
         && exists(/databases/$(database)/documents/locations/$(report.locationId))
-        && report.featureType in ['ramp', 'elevator', 'tactile_paving', 'accessible_toilet', 'parking', 'none']
+        && report.featureType in ['ramp', 'elevator', 'tactile_paving', 'accessible_toilet', 'parking']
         && (report.field == null
           || report.field in ['ramp', 'elevator', 'tactilePaving', 'accessibleToilet'])
         && report.condition in ['usable', 'damaged', 'blocked', 'unclear']

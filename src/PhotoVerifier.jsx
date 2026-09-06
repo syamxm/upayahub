@@ -153,9 +153,15 @@ export default function PhotoVerifier({ location, userId, onReported }) {
 
           <p className="text-sm text-muted-foreground">{result.summary}</p>
 
-          <Button onClick={handleSubmit} disabled={busy} full>
-            Submit report
-          </Button>
+          {result.isAccessibilityFeature && result.featureType !== "none" ? (
+            <Button onClick={handleSubmit} disabled={busy} full>
+              Submit report
+            </Button>
+          ) : (
+            <p role="alert" className="text-sm font-semibold" style={{ color: "var(--tone-danger-text)" }}>
+              No ramp, lift, tactile paving or accessible toilet found. Take a photo of the feature itself.
+            </p>
+          )}
         </div>
       )}
     </div>

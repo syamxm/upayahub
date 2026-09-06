@@ -74,6 +74,7 @@ test("report create rejects forgery and bad values", async () => {
   await assertFails(setDoc(doc(as(bob), "reports/f1"), report()))
   await assertFails(setDoc(doc(as(alice), "reports/f2"), report({ locationId: "ghost" })))
   await assertFails(setDoc(doc(as(alice), "reports/f3"), report({ condition: "great" })))
+  await assertFails(setDoc(doc(as(alice), "reports/f9"), report({ featureType: "none", field: null })))
   await assertFails(setDoc(doc(as(alice), "reports/f4"), report({ confidence: 5 })))
   await assertFails(setDoc(doc(as(alice), "reports/f5"), report({ confidence: 0.1 })))
   await assertFails(setDoc(doc(as(alice), "reports/f6"), report({ looksSynthetic: true })))
