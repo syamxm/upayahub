@@ -5,8 +5,8 @@ import {
   getDocs,
   doc,
   setDoc,
-  updateDoc,
   serverTimestamp,
+  writeBatch,
 } from "firebase/firestore"
 import { db } from "./db"
 import { confirmationsRequired } from "./conditions"
@@ -64,7 +64,8 @@ export async function castVote(report, userId, value) {
   const backers = confirming.size + 1
   if (backers < confirmationsRequired) return null
 
-  await updateDoc(doc(db, "locations", report.locationId), {
+  const batch = writeBatch(db)
+  batch.update(doc(db, "locations", report.locationId), {
     [report.field]: {
       condition: report.condition,
       confirmations: backers,
@@ -72,6 +73,8 @@ export async function castVote(report, userId, value) {
       sourceReportId: report.id,
     },
   })
+  batch.update(doc(db, "reports", report.id), { pending: false })
+  await batch.commit()
 
   return { field: report.field, condition: report.condition, confirmations: backers }
 }

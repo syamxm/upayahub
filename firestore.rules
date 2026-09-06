@@ -109,10 +109,18 @@ service cloud.firestore {
         && !('reporterPhoto' in request.resource.data);
     }
 
+    function promotedToMap(reportId) {
+      let location = getAfter(/databases/$(database)/documents/locations/$(resource.data.locationId));
+      return changed().hasOnly(['pending'])
+        && request.resource.data.pending == false
+        && resource.data.field != null
+        && location.data[resource.data.field].sourceReportId == reportId;
+    }
+
     match /reports/{reportId} {
       allow read: if signedIn();
       allow create: if signedIn() && validReport();
-      allow update: if signedIn() && redactsOwnIdentity();
+      allow update: if signedIn() && (redactsOwnIdentity() || promotedToMap(reportId));
       allow delete: if isAdmin();
     }
 

@@ -81,7 +81,13 @@ export default function CommunityScreen({ userId, onOpenLocation, onConfirmed })
       )
     )
     const promoted = await castVote(report, userId, value)
-    if (promoted) onConfirmed(promoted, report.locationId)
+    if (!promoted) return
+    setFeed((current) =>
+      current.map((entry) =>
+        entry.id === report.id ? { ...entry, pending: false, status: "onMap" } : entry
+      )
+    )
+    onConfirmed(promoted, report.locationId)
   }
 
   const shown = feed?.filter((report) => filter === "all" || report.status === filter) ?? []

@@ -202,6 +202,21 @@ test("locations only change with a backing report", async () => {
   )
 })
 
+test("pending clears only alongside the location update that promotes it", async () => {
+  await env.withSecurityRulesDisabled(async (context) => {
+    await updateDoc(doc(context.firestore(), "reports/r1"), { pending: true })
+  })
+  await assertFails(updateDoc(doc(as(bob), "reports/r1"), { pending: false }))
+
+  const bobDb = as(bob)
+  const batch = writeBatch(bobDb)
+  batch.update(doc(bobDb, "locations/loc1"), {
+    ramp: { condition: "usable", confirmations: 2, lastVerified: serverTimestamp(), sourceReportId: "r1" },
+  })
+  batch.update(doc(bobDb, "reports/r1"), { pending: false })
+  await assertSucceeds(batch.commit())
+})
+
 const admin = () =>
   env.authenticatedContext("admin", { email: "admin_upayahub@upayahub.app" }).firestore()
 
