@@ -1,4 +1,4 @@
-import { collection, addDoc, doc, updateDoc, increment, serverTimestamp } from "firebase/firestore"
+import { collection, addDoc, doc, setDoc, updateDoc, increment, serverTimestamp } from "firebase/firestore"
 import { auth } from "./firebase"
 import { db } from "./db"
 import { featureState, isUpgrade, pointsPerReport } from "./conditions"
@@ -10,7 +10,7 @@ const featureFields = {
   accessible_toilet: "accessibleToilet",
 }
 
-export async function submitReport(location, result, userId) {
+export async function submitReport(location, result, userId, photo) {
   const field = featureFields[result.featureType]
   const needsReview = result.looksSynthetic || result.confidence < 0.6
   const current = field ? featureState(location, field).condition : null
@@ -33,6 +33,13 @@ export async function submitReport(location, result, userId) {
     syntheticConfidence: result.syntheticConfidence,
     needsReview,
     pending: heldForConfirmation,
+    hasPhoto: true,
+    createdAt: serverTimestamp(),
+  })
+
+  await setDoc(doc(db, "reportPhotos", report.id), {
+    reporterId: userId,
+    data: photo,
     createdAt: serverTimestamp(),
   })
 

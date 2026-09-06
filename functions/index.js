@@ -4,6 +4,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https"
 import { defineSecret } from "firebase-functions/params"
 import { setGlobalOptions } from "firebase-functions/v2"
 import { GoogleGenAI, Type } from "@google/genai"
+import sharp from "sharp"
 import { readImage } from "./validation.js"
 
 const geminiApiKey = defineSecret("GEMINI_API_KEY")
@@ -108,12 +109,23 @@ export const checkPhoto = onCall(
       throw new HttpsError("internal", "Could not check that photo. Please try again.")
     }
 
+    let result
     try {
-      return JSON.parse(response.text)
+      result = JSON.parse(response.text)
     } catch (error) {
       console.error("gemini returned unparsable json", error)
       throw new HttpsError("internal", "Could not check that photo. Please try again.")
     }
+
+    // Shrunk copy for reportPhotos (Firestore doc cap 1 MB). Done here because browser canvas
+    // output cannot be trusted (fingerprint blockers, GPU bugs).
+    const photo = await sharp(Buffer.from(base64, "base64"))
+      .rotate()
+      .resize({ width: 1024, height: 1024, fit: "inside", withoutEnlargement: true })
+      .jpeg({ quality: 75 })
+      .toBuffer()
+
+    return { ...result, photo: `data:image/jpeg;base64,${photo.toString("base64")}` }
   }
 )
 

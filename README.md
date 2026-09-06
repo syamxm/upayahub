@@ -29,10 +29,10 @@ Anything marked "UI only" shows an on-screen `TODO: Add Backend Feature Later` n
 
 ### Working
 
-**Four tabs** — Explore (map + list), Report (submit), Community (feed + stats), Profile (points, leaderboard, settings). A fifth Features screen, opened from Explore, holds the community tools listed under "Not built yet".
+**Five tabs** — Explore (map + list), Community (feed + stats), Report (submit), Features (SOS, civic dispatch, rewards), Profile (points, leaderboard, settings).
 
 **Accessibility map**
-Google Maps view, currently centred on Kuala Lumpur because that is where the seeded locations are — coverage is meant to grow across Malaysia as the community adds places. Every location is a pin coloured by its *worst* tracked feature, so a place with a working lift but a blocked ramp still shows red. A legend explains the colours.
+Google Maps view, centred on Cyberjaya because that is where the seeded locations are — coverage is meant to grow across Malaysia as the community adds places. Seeded places carry admin-set default conditions ("Set by admin, not yet reported") until the first community report replaces them. Every location is a pin coloured by its *worst* tracked feature, so a place with a working lift but a blocked ramp still shows red. A legend explains the colours.
 
 Four features are tracked per location: ramp, elevator, tactile paving, accessible toilet. Each has a condition of `usable`, `damaged`, `blocked`, or `unclear`.
 
@@ -146,7 +146,8 @@ wrangler.jsonc            Cloudflare Workers static-asset config
 | Collection | Shape |
 |---|---|
 | `locations` | `name`, `category`, `lat`, `lng`, and per-feature objects `ramp` / `elevator` / `tactilePaving` / `accessibleToilet` = `{ condition, confirmations, lastVerified, sourceReportId }` |
-| `reports` | `locationId`, `locationName`, `reporterId`, `reporterName`, `reporterPhoto`, `featureType`, `field`, `condition`, `confidence`, `summary`, `looksSynthetic`, `syntheticConfidence`, `needsReview`, `pending`, `createdAt` |
+| `reports` | `locationId`, `locationName`, `reporterId`, `reporterName`, `reporterPhoto`, `featureType`, `field`, `condition`, `confidence`, `summary`, `looksSynthetic`, `syntheticConfidence`, `needsReview`, `pending`, `hasPhoto`, `createdAt` |
+| `reportPhotos` | doc id is the report id; `reporterId`, `data` (JPEG data URL, max 1024px), `createdAt`. Loaded only when someone presses "View photo". |
 | `votes` | doc id is `{reportId}_{userId}`; fields `reportId`, `voterId`, `value` (1 or -1), `createdAt` |
 | `users` | `name`, `photo`, `points`, `reportCount`, `lastReportId`, `lastRedemptionId` |
 | `users/{uid}/redemptions` | `voucherId`, `partner`, `title`, `code`, `cost`, `createdAt`. Owner-only. |
@@ -161,7 +162,8 @@ wrangler.jsonc            Cloudflare Workers static-asset config
 - Reading anything requires sign-in. Signed-out users get nothing.
 - **Reports** must carry the caller's own uid, reference a location that exists, use valid enums, keep `confidence` in 0–1, and pass a field allowlist. Critically, `needsReview` must equal `looksSynthetic || confidence < 0.6` — a client cannot mark a flagged photo as clean.
 - **Votes** are create-only, one per person per report, cannot be cast on your own report, and cannot be edited or deleted.
-- **Locations** change only on the four feature fields, and only when backed by a real report whose condition matches.
+- **Locations** change only on the four feature fields, and only when backed by a real report whose condition matches. Only the admin account can create or delete locations, reports, votes and photos (used by the "Reset to Cyberjaya places" button).
+- **Report photos** can only be written by the owner of the matching report, are capped at 1 MB, and can never be edited.
 - **Points** require a fresh report you actually own. The user document stores `lastReportId`; a points write must reference a report that exists, belongs to you, and differs from the one already recorded — so the same write cannot be replayed for free points.
 - **Vouchers** can only be created or deleted by the account whose email is `admin_upayahub@upayahub.app`.
 - **Redemptions** are written in one batch with the points deduction. The redemption must copy the voucher's real cost, and the user document must point at it via `lastRedemptionId` in the same batch — neither half can land alone, and points cannot go negative.
@@ -283,22 +285,11 @@ firebase deploy --only firestore:rules
 
 `.firebaserc` currently points at the project alias `upayahub`; `firebase use --add` will repoint it at yours.
 
-### 8. Seed at least one location
+### 8. Seed the locations
 
-The rules deliberately forbid creating locations from the app (`allow create: if false`), so add them by hand in **Firestore → Data → Start collection**:
+Do step 9 first (admin account), then open `/#admin` and press **Reset to Cyberjaya places**. That wipes every location, report, vote and photo and adds five Cyberjaya places (MMU, Shaftsbury Square, DPulze, Cyberjaya Lake Park, Masjid Raja Haji Fi Sabilillah) with admin-set default conditions. The list lives in `src/places.js`; coordinates are approximate, so nudge them in the Firestore console if a pin looks off.
 
-- Collection ID: `locations`
-- Document ID: auto
-- Fields:
-
-| Field | Type | Example |
-|---|---|---|
-| `name` | string | `KL Sentral` |
-| `category` | string | `Transit hub` |
-| `lat` | number | `3.1339` |
-| `lng` | number | `101.6869` |
-
-Feature fields are optional — anything absent shows as "No reports yet" and gets filled in by the first verified report.
+To add a place by hand instead, create a document in `locations` with `name`, `category`, `lat`, `lng`. Feature fields are optional — anything absent shows as "No reports yet" and gets filled in by the first verified report.
 
 ### 9. Create the admin account (for vouchers)
 
@@ -403,6 +394,7 @@ Rules before the site: the current rules reject the old `submitReport` write sha
 | Error 522 on the custom domain | A hand-made CNAME to `*.workers.dev`. Delete it and attach the domain from the Worker instead. |
 | Map area is blank/grey | Maps key missing, Maps JavaScript API not enabled, or the referrer restriction doesn't include your actual port. |
 | No pins on the map | The `locations` collection is empty — see step 8. |
+| "Reset to Cyberjaya places" fails | Rules not redeployed (step 7), or you're signed in as a normal user rather than the admin. |
 | "Missing or insufficient permissions" | Firestore rules not deployed (step 7), or you're signed out. |
 | Photo check always fails | Function not deployed, `GEMINI_API_KEY` secret not set, or you've hit 20 checks in an hour. |
 | Photo check fails only on preview deploys | Preview URLs aren't in the function's CORS allowlist. Add the hostname to `allowedOrigins` in `functions/index.js`. |

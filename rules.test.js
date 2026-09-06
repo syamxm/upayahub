@@ -206,6 +206,24 @@ const admin = () =>
 
 const voucher = { partner: "Kopi", title: "RM5 off", description: "d", cost: 30, createdAt: serverTimestamp() }
 
+test("only the admin resets places, reports and votes", async () => {
+  await assertFails(setDoc(doc(as(alice), "locations/new"), { name: "X", lat: 2.9, lng: 101.6 }))
+  await assertFails(deleteDoc(doc(as(alice), "locations/loc1")))
+  await assertSucceeds(setDoc(doc(admin(), "locations/new"), { name: "X", lat: 2.9, lng: 101.6 }))
+  await assertSucceeds(deleteDoc(doc(admin(), "locations/loc1")))
+  await assertSucceeds(deleteDoc(doc(admin(), "reports/r1")))
+})
+
+test("report photo is written by the report owner only", async () => {
+  const photo = { reporterId: alice, data: "data:image/jpeg;base64,xx", createdAt: serverTimestamp() }
+  await assertSucceeds(setDoc(doc(as(alice), "reportPhotos/r1"), photo))
+  await assertFails(setDoc(doc(as(bob), "reportPhotos/r1"), { ...photo, reporterId: bob }))
+  await assertFails(setDoc(doc(as(alice), "reportPhotos/ghost"), photo))
+  await assertSucceeds(getDoc(doc(as(bob), "reportPhotos/r1")))
+  await assertFails(deleteDoc(doc(as(alice), "reportPhotos/r1")))
+  await assertSucceeds(setDoc(doc(as(alice), "reports/p1"), report({ hasPhoto: true })))
+})
+
 test("only the admin account manages vouchers", async () => {
   await assertFails(setDoc(doc(as(alice), "vouchers/v1"), voucher))
   await assertSucceeds(setDoc(doc(admin(), "vouchers/v1"), voucher))

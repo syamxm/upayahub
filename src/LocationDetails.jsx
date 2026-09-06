@@ -17,7 +17,11 @@ import { reportsToCsv, downloadCsv, csvFilename } from "./exportReport"
 
 function Provenance({ state }) {
   if (state.confirmations === 0) {
-    return <span className="text-micro text-muted-foreground">No reports yet</span>
+    return (
+      <span className="text-micro text-muted-foreground">
+        {state.condition === "unclear" ? "No reports yet" : "Set by admin, not yet reported"}
+      </span>
+    )
   }
   if (state.confirmed) {
     return (

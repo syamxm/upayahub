@@ -9,6 +9,7 @@ import { submitReport } from "./submitReport"
 
 export default function PhotoVerifier({ location, userId, onReported }) {
   const [result, setResult] = useState(null)
+  const [photo, setPhoto] = useState(null)
   const [status, setStatus] = useState("")
   const [error, setError] = useState("")
   const [busy, setBusy] = useState(false)
@@ -22,7 +23,9 @@ export default function PhotoVerifier({ location, userId, onReported }) {
     setStatus("Checking your photo")
     setBusy(true)
     try {
-      setResult(await verifyPhoto(file))
+      const { photo: shrunk, ...checked } = await verifyPhoto(file)
+      setPhoto(shrunk)
+      setResult(checked)
       setStatus("")
     } catch {
       setError("Could not check that photo. Please try again.")
@@ -36,7 +39,7 @@ export default function PhotoVerifier({ location, userId, onReported }) {
     setError("")
     setBusy(true)
     try {
-      const update = await submitReport(location, result, userId)
+      const update = await submitReport(location, result, userId, photo)
       onReported(update, location.id)
       setResult(null)
       if (update?.applied) setStatus("Report saved and the map is updated.")

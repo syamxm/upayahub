@@ -49,7 +49,20 @@ service cloud.firestore {
           || validFeature(request.resource.data.tactilePaving, locationId, 'tactilePaving'))
         && (!changed().hasAny(['accessibleToilet'])
           || validFeature(request.resource.data.accessibleToilet, locationId, 'accessibleToilet'));
-      allow create, delete: if false;
+      allow create, delete: if isAdmin();
+    }
+
+    match /reportPhotos/{reportId} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['reporterId', 'data', 'createdAt'])
+        && request.resource.data.reporterId == request.auth.uid
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.data is string
+        && request.resource.data.data.size() <= 1000000
+        && get(/databases/$(database)/documents/reports/$(reportId)).data.reporterId == request.auth.uid;
+      allow update: if false;
+      allow delete: if isAdmin();
     }
 
     function validReport() {
@@ -57,7 +70,7 @@ service cloud.firestore {
       return report.keys().hasOnly([
           'locationId', 'locationName', 'reporterId', 'reporterName', 'reporterPhoto',
           'featureType', 'field', 'condition', 'confidence', 'summary',
-          'looksSynthetic', 'syntheticConfidence', 'needsReview', 'pending', 'createdAt'
+          'looksSynthetic', 'syntheticConfidence', 'needsReview', 'pending', 'hasPhoto', 'createdAt'
         ])
         && report.keys().hasAll([
           'locationId', 'reporterId', 'featureType', 'field', 'condition',
@@ -82,6 +95,7 @@ service cloud.firestore {
         && (!('locationName' in report)
           || (report.locationName is string && report.locationName.size() <= 200))
         && (!('syntheticConfidence' in report) || report.syntheticConfidence is number)
+        && (!('hasPhoto' in report) || report.hasPhoto is bool)
         && (report.reporterName == null
           || (report.reporterName is string && report.reporterName.size() <= 100))
         && (report.reporterPhoto == null
@@ -99,7 +113,7 @@ service cloud.firestore {
       allow read: if signedIn();
       allow create: if signedIn() && validReport();
       allow update: if signedIn() && redactsOwnIdentity();
-      allow delete: if false;
+      allow delete: if isAdmin();
     }
 
     match /votes/{voteId} {
@@ -113,7 +127,8 @@ service cloud.firestore {
         && exists(/databases/$(database)/documents/reports/$(request.resource.data.reportId))
         && get(/databases/$(database)/documents/reports/$(request.resource.data.reportId))
              .data.reporterId != request.auth.uid;
-      allow update, delete: if false;
+      allow update: if false;
+      allow delete: if isAdmin();
     }
 
     function validProfileWrite() {

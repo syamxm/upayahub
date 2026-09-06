@@ -8,6 +8,7 @@ import { conditionLabels, conditionTones } from "../conditions"
 import { loadCommunityStats, loadFeed } from "../feed"
 import { castVote } from "../votes"
 import { VoteButton } from "../ReportList"
+import ReportPhoto from "../ReportPhoto"
 
 const statuses = {
   onMap: { label: "On the map", tone: "success", icon: CheckCircle },
@@ -212,6 +213,7 @@ export default function CommunityScreen({ userId, onOpenLocation, onConfirmed })
                           onClick={() => vote(report, -1)}
                           disabled={voted || isOwn}
                         />
+                        {report.hasPhoto && <ReportPhoto reportId={report.id} />}
                         <button
                           type="button"
                           onClick={() => onOpenLocation(report.locationId)}
