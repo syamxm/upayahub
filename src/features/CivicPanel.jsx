@@ -1,13 +1,18 @@
 import { useState } from "react"
-import { ChevronLeft, FileDown, Mail } from "lucide-react"
+import { CheckCircle2, ChevronLeft, FileDown, Mail, Paperclip } from "lucide-react"
 import LocationList from "../LocationList"
 import Button from "../ui/Button"
 import Card from "../ui/Card"
 import Pill from "../ui/Pill"
-import TodoStub from "../ui/TodoStub"
+import Field from "../ui/Field"
+import Spinner from "../ui/Spinner"
 import { conditionLabels, conditionTones, severity } from "../conditions"
 import { loadReports } from "../votes"
 import { csvFilename, downloadCsv, reportsToCsv } from "../exportReport"
+import { draftCouncilEmail } from "../draftEmail"
+
+// ponytail: dummy inbox. Real delivery needs a mail provider and an audit trail.
+const councilAddress = "aduan@jkr.gov.my"
 
 function rank(reports) {
   return [...reports].sort(
@@ -22,7 +27,9 @@ export default function CivicPanel({ locations, origin }) {
   const [chosenId, setChosenId] = useState(null)
   const [reports, setReports] = useState(null)
   const [error, setError] = useState("")
-  const [emailAttempted, setEmailAttempted] = useState(false)
+  const [email, setEmail] = useState(null)
+  const [drafting, setDrafting] = useState(false)
+  const [sentRef, setSentRef] = useState("")
 
   const chosen = locations.find((location) => location.id === chosenId) ?? null
 
@@ -30,12 +37,24 @@ export default function CivicPanel({ locations, origin }) {
     setChosenId(location.id)
     setReports(null)
     setError("")
-    setEmailAttempted(false)
+    setEmail(null)
+    setSentRef("")
     try {
       setReports(await loadReports(location.id))
     } catch {
       setError("Could not load reports for this place.")
     }
+  }
+
+  async function draftEmail() {
+    setDrafting(true)
+    setError("")
+    try {
+      setEmail(await draftCouncilEmail(chosen, ranked))
+    } catch {
+      setError("Could not draft the email. Please try again.")
+    }
+    setDrafting(false)
   }
 
   if (!chosen) {
@@ -44,8 +63,8 @@ export default function CivicPanel({ locations, origin }) {
         <Card>
           <h2 className="font-display text-lg font-bold">Escalate to the council</h2>
           <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-            Choose a place to see its reports ranked by severity, then download them as a
-            spreadsheet you can send to the council yourself.
+            Choose a place to see its reports ranked by severity, then let Gemini draft a formal
+            email to JKR with the report spreadsheet attached.
           </p>
         </Card>
         <LocationList
@@ -134,15 +153,57 @@ export default function CivicPanel({ locations, origin }) {
             Download report as CSV
           </Button>
 
-          <Button variant="secondary" full onClick={() => setEmailAttempted(true)}>
-            <Mail size={16} aria-hidden="true" />
-            Send officially to the council
-          </Button>
+          {!email && (
+            <Button variant="secondary" full disabled={drafting} onClick={draftEmail}>
+              {drafting ? (
+                <Spinner label="Drafting email with Gemini" size={16} />
+              ) : (
+                <Mail size={16} aria-hidden="true" />
+              )}
+              {drafting ? "Drafting with Gemini…" : "Draft email to JKR"}
+            </Button>
+          )}
 
-          {emailAttempted && (
-            <div aria-live="polite">
-              <TodoStub what="Nothing was sent. Emailing the council needs a backend that can deliver mail, keep an audit trail and track the reference number. The CSV download above is real and works today, so you can send it yourself in the meantime." />
-            </div>
+          {email && (
+            <Card as="section" aria-live="polite" className="space-y-3">
+              <h3 className="font-display text-base font-bold">Email to the council</h3>
+              <p className="text-sm">
+                <span className="text-muted-foreground">To:</span> {councilAddress}
+              </p>
+              <Field
+                label="Subject"
+                value={email.subject}
+                onChange={(event) => setEmail({ ...email, subject: event.target.value })}
+              />
+              <Field
+                label="Message"
+                as="textarea"
+                rows={12}
+                value={email.body}
+                onChange={(event) => setEmail({ ...email, body: event.target.value })}
+              />
+              <p className="flex items-center gap-2 rounded-control bg-muted px-3 py-2 text-micro">
+                <Paperclip size={14} aria-hidden="true" />
+                {csvFilename(chosen)} ({ranked.length} rows)
+              </p>
+              {sentRef ? (
+                <p
+                  className="flex items-center gap-2 rounded-control border p-3 text-sm"
+                  style={{
+                    background: "var(--tone-success-surface, var(--accent))",
+                    borderColor: "var(--tone-success-border, var(--border))",
+                  }}
+                >
+                  <CheckCircle2 size={16} aria-hidden="true" className="text-primary" />
+                  Sent to {councilAddress}. Reference {sentRef}. (Prototype: no mail actually left.)
+                </p>
+              ) : (
+                <Button full onClick={() => setSentRef(`UH-JKR-${Date.now().toString(36).toUpperCase()}`)}>
+                  <Mail size={16} aria-hidden="true" />
+                  Send to {councilAddress}
+                </Button>
+              )}
+            </Card>
           )}
         </>
       )}
