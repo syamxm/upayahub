@@ -2,7 +2,7 @@ import { useEffect } from "react"
 import { APIProvider, Map, Marker, useMap } from "@vis.gl/react-google-maps"
 import { worstCondition, pinIcon } from "./conditions"
 
-const kualaLumpur = { lat: 3.145, lng: 101.6958 }
+const cyberjaya = { lat: 2.9255, lng: 101.649 }
 const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
 
 function FollowOrigin({ origin }) {
@@ -39,8 +39,8 @@ export default function AccessibilityMap({ locations, onSelect, origin }) {
   return (
     <APIProvider apiKey={apiKey}>
       <Map
-        defaultCenter={kualaLumpur}
-        defaultZoom={13}
+        defaultCenter={cyberjaya}
+        defaultZoom={14}
         gestureHandling="greedy"
         disableDefaultUI
         className="w-full h-full"

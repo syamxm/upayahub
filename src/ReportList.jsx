@@ -3,6 +3,7 @@ import { ThumbsUp, ThumbsDown, ShieldAlert, Clock } from "lucide-react"
 import Pill from "./ui/Pill"
 import { conditionLabels, conditionTones } from "./conditions"
 import { loadReports, castVote } from "./votes"
+import ReportPhoto from "./ReportPhoto"
 
 function timeAgo(createdAt) {
   if (!createdAt) return "just now"
@@ -133,6 +134,7 @@ export default function ReportList({ locationId, userId, refreshKey, onConfirmed
                   onClick={() => vote(report, -1)}
                   disabled={voted || isOwn}
                 />
+                {report.hasPhoto && <ReportPhoto reportId={report.id} />}
                 {isOwn && <span className="text-micro text-muted-foreground">Your report</span>}
               </div>
             </li>

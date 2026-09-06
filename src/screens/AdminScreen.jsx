@@ -6,6 +6,7 @@ import Button from "../ui/Button"
 import Card from "../ui/Card"
 import Field from "../ui/Field"
 import { ADMIN_EMAIL, addVoucher, deleteVoucher, loadVouchers, sampleVouchers } from "../rewards"
+import { cyberjayaPlaces, resetPlaces } from "../places"
 
 const empty = { partner: "", title: "", description: "", cost: "" }
 
@@ -45,6 +46,19 @@ export default function AdminScreen({ user }) {
       setForm(empty)
     } catch {
       setError("Could not save voucher. Check the Firestore rules and the admin account email.")
+    }
+    setBusy(false)
+  }
+
+  async function reset() {
+    if (!window.confirm("Delete every place, report, vote and photo, then add the Cyberjaya set?")) return
+    setBusy(true)
+    setError("")
+    try {
+      const count = await resetPlaces()
+      window.alert(`Done. ${count} Cyberjaya places added.`)
+    } catch {
+      setError("Could not reset places. Check the Firestore rules are deployed.")
     }
     setBusy(false)
   }
@@ -109,6 +123,16 @@ export default function AdminScreen({ user }) {
                 </Button>
               </div>
             </form>
+
+            <Card className="space-y-2">
+              <p className="text-sm font-semibold">Places</p>
+              <p className="text-micro text-muted-foreground">
+                Wipes all places, reports, votes and photos, then adds {cyberjayaPlaces.length} Cyberjaya places with admin-set defaults.
+              </p>
+              <Button variant="danger" disabled={busy} onClick={reset} full>
+                Reset to Cyberjaya places
+              </Button>
+            </Card>
 
             <ul className="space-y-2">
               {vouchers.map((voucher) => (
