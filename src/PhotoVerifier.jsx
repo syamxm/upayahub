@@ -62,7 +62,7 @@ export default function PhotoVerifier({ location, userId, onReported }) {
         </p>
       </div>
 
-      <label className="tap flex w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-control border-2 border-dashed border-border px-4 py-5 text-center transition-colors hover:bg-muted focus-within:outline focus-within:outline-[3px] focus-within:outline-offset-2 focus-within:outline-[var(--ring)]">
+      <label className="tap relative flex w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-control border-2 border-dashed border-border px-4 py-5 text-center transition-colors hover:bg-muted focus-within:outline focus-within:outline-[3px] focus-within:outline-offset-2 focus-within:outline-[var(--ring)]">
         <span className="grid h-11 w-11 place-items-center rounded-full bg-accent text-[var(--accent-foreground)]">
           <Camera size={20} aria-hidden="true" />
         </span>
