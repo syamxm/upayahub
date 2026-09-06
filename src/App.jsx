@@ -15,6 +15,7 @@ const ProfileScreen = lazy(() => import("./screens/ProfileScreen"))
 const ReportScreen = lazy(() => import("./screens/ReportScreen"))
 const CommunityScreen = lazy(() => import("./screens/CommunityScreen"))
 const FeaturesScreen = lazy(() => import("./screens/FeaturesScreen"))
+const AdminScreen = lazy(() => import("./screens/AdminScreen"))
 import { matchesFilters, pointsPerReport } from "./conditions"
 
 const tabs = [
@@ -41,6 +42,13 @@ export default function App() {
   const [origin, setOrigin] = useState(null)
   const [locating, setLocating] = useState(false)
   const [showFeatures, setShowFeatures] = useState(false)
+  const [adminRoute, setAdminRoute] = useState(() => window.location.hash === "#admin")
+
+  useEffect(() => {
+    const onHash = () => setAdminRoute(window.location.hash === "#admin")
+    window.addEventListener("hashchange", onHash)
+    return () => window.removeEventListener("hashchange", onHash)
+  }, [])
 
   useEffect(() => {
     if (!user) return
@@ -64,7 +72,7 @@ export default function App() {
     onAuthStateChanged(auth, async (account) => {
       setCheckingAuth(false)
       setUser(account)
-      if (!account) return
+      if (!account || window.location.hash === "#admin") return
       const { syncProfile } = await import("./session")
       const profile = await syncProfile(account)
       setPoints(profile.points)
@@ -137,6 +145,14 @@ export default function App() {
     )
   }
 
+  if (adminRoute) {
+    return (
+      <Suspense fallback={<ScreenLoading label="Loading admin" />}>
+        <AdminScreen user={user} />
+      </Suspense>
+    )
+  }
+
   if (!user) return <SignIn />
 
   const selected = locations.find((location) => location.id === selectedId)
@@ -151,6 +167,8 @@ export default function App() {
           locations={locations}
           points={points}
           reportCount={reportCount}
+          userId={user.uid}
+          onRedeem={(cost) => setPoints((current) => current - cost)}
           origin={origin}
             onLocate={locate}
             locating={locating}

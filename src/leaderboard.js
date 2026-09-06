@@ -38,5 +38,5 @@ export async function loadLeaderboard() {
         votesReceived: total,
       }
     })
-    .sort((a, b) => b.points - a.points)
+    .sort((a, b) => b.reportCount - a.reportCount || b.points - a.points)
 }

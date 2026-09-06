@@ -11,6 +11,10 @@ service cloud.firestore {
       return signedIn() && request.auth.uid == userId;
     }
 
+    function isAdmin() {
+      return signedIn() && request.auth.token.email == 'admin_upayahub@upayahub.app';
+    }
+
     function changed() {
       return request.resource.data.diff(resource.data).affectedKeys();
     }
@@ -134,6 +138,17 @@ service cloud.firestore {
         && source.data.reporterId == userId;
     }
 
+    function spendsPointsOnVoucher(userId) {
+      let next = request.resource.data;
+      let current = resource.data;
+      let redemption = getAfter(/databases/$(database)/documents/users/$(userId)/redemptions/$(next.lastRedemptionId));
+      return next.diff(current).affectedKeys().hasOnly(['points', 'lastRedemptionId'])
+        && next.lastRedemptionId is string
+        && next.lastRedemptionId != current.get('lastRedemptionId', '')
+        && next.points == current.get('points', 0) - redemption.data.cost
+        && next.points >= 0;
+    }
+
     match /users/{userId} {
       allow read: if signedIn();
       allow create: if isOwner(userId)
@@ -143,8 +158,43 @@ service cloud.firestore {
         && (!('photo' in request.resource.data)
           || (request.resource.data.photo is string && request.resource.data.photo.size() <= 500));
       allow update: if isOwner(userId)
-        && (validProfileWrite() || earnsPointsForNewReport(userId));
+        && (validProfileWrite() || earnsPointsForNewReport(userId) || spendsPointsOnVoucher(userId));
       allow delete: if isOwner(userId);
+    }
+
+    function validRedemption(userId, redemptionId) {
+      let redemption = request.resource.data;
+      let voucher = get(/databases/$(database)/documents/vouchers/$(redemption.voucherId));
+      return redemption.keys().hasOnly(['voucherId', 'partner', 'title', 'code', 'cost', 'createdAt'])
+        && redemption.keys().hasAll(['voucherId', 'partner', 'title', 'code', 'cost', 'createdAt'])
+        && redemption.createdAt == request.time
+        && redemption.code is string && redemption.code.size() <= 20
+        && voucher != null
+        && redemption.partner == voucher.data.partner
+        && redemption.title == voucher.data.title
+        && redemption.cost == voucher.data.cost
+        && getAfter(/databases/$(database)/documents/users/$(userId)).data.lastRedemptionId == redemptionId;
+    }
+
+    match /users/{userId}/redemptions/{redemptionId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && validRedemption(userId, redemptionId);
+      allow update, delete: if false;
+    }
+
+    match /vouchers/{voucherId} {
+      allow read: if signedIn();
+      allow create: if isAdmin()
+        && request.resource.data.keys().hasOnly(['partner', 'title', 'description', 'cost', 'createdAt'])
+        && request.resource.data.keys().hasAll(['partner', 'title', 'cost', 'createdAt'])
+        && request.resource.data.partner is string && request.resource.data.partner.size() <= 100
+        && request.resource.data.title is string && request.resource.data.title.size() <= 100
+        && (!('description' in request.resource.data)
+          || (request.resource.data.description is string && request.resource.data.description.size() <= 300))
+        && request.resource.data.cost is int && request.resource.data.cost > 0
+        && request.resource.data.createdAt == request.time;
+      allow delete: if isAdmin();
+      allow update: if false;
     }
 
     match /photoCheckLimits/{userId} {

@@ -16,6 +16,8 @@ export default function FeaturesScreen({
   locations,
   points,
   reportCount,
+  userId,
+  onRedeem,
   origin,
   onLocate,
   locating,
@@ -66,7 +68,9 @@ export default function FeaturesScreen({
             <SosPanel origin={origin} onLocate={onLocate} locating={locating} />
           )}
           {panel === "civic" && <CivicPanel locations={locations} origin={origin} />}
-          {panel === "rewards" && <RewardsPanel points={points} reportCount={reportCount} />}
+          {panel === "rewards" && (
+            <RewardsPanel points={points} reportCount={reportCount} userId={userId} onRedeem={onRedeem} />
+          )}
         </div>
       </div>
     </>
