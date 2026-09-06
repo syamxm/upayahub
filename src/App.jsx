@@ -254,7 +254,7 @@ export default function App() {
           />
         )}
 
-        {tab === "community" && <CommunityScreen onOpenLocation={openLocation} />}
+        {tab === "community" && <CommunityScreen userId={user.uid} onOpenLocation={openLocation} onConfirmed={applyReport} />}
 
         {tab === "profile" && (
           <ProfileScreen
