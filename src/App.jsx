@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from "react"
 import { onAuthStateChanged } from "firebase/auth"
-import { AlertCircle, Map, Radio, User, Users } from "lucide-react"
+import { AlertCircle, Map, Radio, Sparkles, User, Users } from "lucide-react"
 import { auth } from "./firebase"
 import SignIn from "./SignIn"
 import AppShell from "./ui/AppShell"
@@ -20,8 +20,9 @@ import { matchesFilters, pointsPerReport } from "./conditions"
 
 const tabs = [
   { id: "explore", label: "Explore", icon: Map },
-  { id: "report", label: "Report", icon: AlertCircle, raised: true },
   { id: "community", label: "Community", icon: Users },
+  { id: "report", label: "Report", icon: AlertCircle },
+  { id: "features", label: "Features", icon: Sparkles },
   { id: "profile", label: "Profile", icon: User },
 ]
 
@@ -42,7 +43,6 @@ export default function App() {
   const [origin, setOrigin] = useState(null)
   const [locating, setLocating] = useState(false)
   const [locateError, setLocateError] = useState(null)
-  const [showFeatures, setShowFeatures] = useState(false)
   const [alerts, setAlerts] = useState([])
   const [adminRoute, setAdminRoute] = useState(() => window.location.hash === "#admin")
 
@@ -150,12 +150,10 @@ export default function App() {
   }
 
   function openTab(next) {
-    setShowFeatures(false)
     setTab(next)
   }
 
   function openLocation(locationId) {
-    setShowFeatures(false)
     setSelectedId(locationId)
     setTab("explore")
   }
@@ -187,12 +185,12 @@ export default function App() {
   const selected = locations.find((location) => location.id === selectedId)
   const visible = locations.filter((location) => matchesFilters(location, filters))
 
-  if (showFeatures) {
+  if (tab === "features") {
     return (
       <AppShell nav={<MainNav items={tabs} active={tab} onChange={openTab} />}>
         <Suspense fallback={<ScreenLoading label="Loading community tools" />}>
           <FeaturesScreen
-          onBack={() => setShowFeatures(false)}
+          onBack={() => setTab("explore")}
           locations={locations}
           points={points}
           reportCount={reportCount}
@@ -213,7 +211,7 @@ export default function App() {
       {alerts.length > 0 && (
         <button
           type="button"
-          onClick={() => setShowFeatures(true)}
+          onClick={() => setTab("features")}
           className="tap flex shrink-0 items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold text-[var(--primary-foreground)]"
           style={{ background: "var(--tone-danger-text)" }}
         >
@@ -238,7 +236,6 @@ export default function App() {
             onLocate={locate}
             locating={locating}
             locateError={locateError}
-            onOpenFeatures={() => setShowFeatures(true)}
             status={locationsStatus}
             onRetry={reloadLocations}
           />

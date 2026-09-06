@@ -1,5 +1,5 @@
 import { lazy, Suspense, useState } from "react"
-import { Navigation, Search, Sparkles } from "lucide-react"
+import { Navigation, Search } from "lucide-react"
 import LocationDetails from "../LocationDetails"
 import LocationList from "../LocationList"
 import MapLegend from "../MapLegend"
@@ -27,7 +27,6 @@ export default function ExploreScreen({
   onLocate,
   locating,
   locateError,
-  onOpenFeatures,
   status,
   onRetry,
 }) {
@@ -66,14 +65,6 @@ export default function ExploreScreen({
   return (
     <>
       <ScreenHeader title="UpayaHub" subtitle="Know before you go.">
-        <button
-          type="button"
-          onClick={onOpenFeatures}
-          className="tap inline-flex items-center gap-1.5 rounded-full bg-card px-3 py-2 text-micro font-bold text-primary shadow-raised"
-        >
-          <Sparkles size={14} aria-hidden="true" />
-          More features
-        </button>
         <button
           type="button"
           onClick={onLocate}

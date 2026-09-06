@@ -12,7 +12,7 @@ export default function MainNav({ items, active, onChange }) {
         className="order-last shrink-0 border-t border-border bg-card pb-[env(safe-area-inset-bottom)] md:hidden"
       >
         <ul className="flex">
-          {items.map(({ id, label, icon: Icon, raised }) => {
+          {items.map(({ id, label, icon: Icon }) => {
             const isActive = id === active
             return (
               <li key={id} className="flex-1">
@@ -22,23 +22,13 @@ export default function MainNav({ items, active, onChange }) {
                   aria-current={isActive ? "page" : undefined}
                   className={`tap flex w-full flex-col items-center gap-1 px-1 pb-2 pt-2.5 text-micro font-semibold transition-colors ${itemClasses(isActive)}`}
                 >
-                  {raised ? (
-                    <span
-                      className={`-mt-6 grid h-12 w-12 place-items-center rounded-full bg-primary text-[var(--primary-foreground)] shadow-float transition-transform ${
-                        isActive ? "scale-105" : ""
-                      }`}
-                    >
-                      <Icon size={20} aria-hidden="true" />
-                    </span>
-                  ) : (
-                    <span
-                      className={`grid h-8 w-8 place-items-center rounded-control transition-colors ${
-                        isActive ? "bg-accent text-[var(--accent-foreground)]" : ""
-                      }`}
-                    >
-                      <Icon size={20} aria-hidden="true" />
-                    </span>
-                  )}
+                  <span
+                    className={`grid h-8 w-8 place-items-center rounded-control transition-colors ${
+                      isActive ? "bg-accent text-[var(--accent-foreground)]" : ""
+                    }`}
+                  >
+                    <Icon size={20} aria-hidden="true" />
+                  </span>
                   {label}
                 </button>
               </li>
