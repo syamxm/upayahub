@@ -13,15 +13,16 @@ Wheelchair users, blind travellers, and parents with strollers across Malaysia r
 | Area | State |
 |---|---|
 | Map, reporting, voting, leaderboard | Working |
-| AI photo verification | Working, key now server-side |
+| AI photo verification + stored report photos | Working, key server-side |
 | Google sign-in | Working |
-| Firestore security rules | Hardened, 14 emulator tests |
+| Firestore security rules | Hardened, 20 emulator tests |
 | Production deploy | Live on Cloudflare Workers |
 | SOS broadcast | Working (in-app alerts, 2 km, 10 min, 3/day) |
-| Rewards / vouchers | **UI only — no backend** |
-| Email report to council | **UI only — CSV download works** |
+| Rewards / vouchers | Working (points spend, admin-managed vouchers) |
+| Email report to council | Gemini drafts it; **send is a stub** |
+| Admin page | Prototype at `/#admin` (vouchers, Cyberjaya reset) |
 
-Anything marked "UI only" shows an on-screen `TODO: Add Backend Feature Later` notice in the app. Nothing is faked silently.
+Stubs are labelled in the UI. Nothing is faked silently.
 
 ---
 
@@ -43,6 +44,9 @@ Upload a photo of a ramp, lift, tactile paving or accessible toilet. Gemini (`ge
 
 The same call also runs **AI-image detection** — it judges whether the photo is a real camera photograph or synthetic (AI generated, rendered, heavily manipulated), looking for warped signage text, implausible geometry, missing sensor noise, and similar tells. Photos flagged as synthetic, or scored under 0.6 confidence, are marked `needsReview` and never touch the map.
 
+**Report photos**
+The function also returns a shrunk copy of the photo (≤1024 px JPEG, made with `sharp`). It is saved to `reportPhotos/{reportId}` when the report is submitted, and anyone can open it from a **View photo** button on the report, on the map sheet and in the Community feed. Shrinking happens server-side on purpose: browser canvas output is not trustworthy (fingerprint blockers and GPU bugs both produce garbage).
+
 **Asymmetric trust**
 Warnings and all-clears are treated differently on purpose:
 
@@ -50,19 +54,19 @@ Warnings and all-clears are treated differently on purpose:
 - A report that makes a feature *better* (blocked → usable) is held as `pending` until **2 community confirmations**. Clearing a warning is the expensive mistake, so it costs more evidence.
 
 **Community voting**
-Each location shows its 10 most recent reports. Any signed-in user can confirm (👍) or dispute (👎) a report — one vote per person, and you cannot vote on your own. Both rules are now enforced in Firestore, not just hidden in the UI. When a pending report reaches 2 confirmations, it is promoted and the map updates.
+Each location shows its 10 most recent reports, and the Community tab shows the latest 50 across the city. Any signed-in user can confirm (👍) or dispute (👎) a report from either place — one vote per person, and you cannot vote on your own. Both rules are enforced in Firestore, not just hidden in the UI. When a pending report reaches 2 confirmations, it is promoted and the map updates.
 
 **Freshness decay**
 A feature confirmed more than **30 days** ago is marked stale and drops back to "unconfirmed" in the UI. Accessibility changes; old data stops claiming to be verified.
 
 **Leaderboard and credibility**
-10 points per report submitted. The leaderboard ranks contributors by points and shows a credibility score — the percentage of your reports that the community confirmed rather than disputed.
+Every report earns 1 EXP and 10 points. The leaderboard ranks contributors by EXP (then points) and shows a credibility score — the percentage of your reports that the community confirmed rather than disputed. EXP never drops; points are spent on vouchers.
 
 **Civic dispatch**
 The Civic panel ranks a location's reports worst-first, downloads them as CSV, and asks Gemini (via the `draftCouncilEmail` Cloud Function) to draft a formal complaint email to JKR with the CSV listed as an attachment. The compose screen is editable; "Send" is a prototype stub that issues a reference number and delivers nothing.
 
 **Account controls**
-Light/dark/system theme toggle. Account deletion that re-authenticates, strips your name and photo from every report you filed, and removes your user document.
+Light/dark/system theme toggle. Account deletion re-authenticates with Google (hinted to the current account), strips your name and photo from every report you filed, and removes your user document.
 
 **Google sign-in**
 Firebase Auth with a Google popup. Reports carry your name and photo so credibility accrues to a real identity.
@@ -71,11 +75,14 @@ Firebase Auth with a Google popup. Reports carry your name and photo so credibil
 Share your location, pick what is happening, tap Broadcast. The `sendSos` Cloud Function enforces 3 alerts per account per day, finds opted-in helpers within 2 km, and creates an SOS document that only the requester and those helpers can read. It lasts 10 minutes. Helpers see a red banner anywhere in the app, can tap "I'm on my way" (first one wins) and open the spot in Google Maps; the requester sees who is coming and can cancel.
 
 **Rewards and vouchers**
-Every report earns 1 EXP and 10 points. EXP ranks the leaderboard and never drops. Points are spent on partner vouchers (local businesses and councils) in Community tools → Rewards; a redemption issues a code into your wallet. Vouchers are added through a prototype admin page at `/#admin`.
+Points are spent on partner vouchers (local businesses and councils) in Features → Rewards; a redemption issues a `UH-XXXXXX` code into your wallet. Vouchers are added through the admin page.
+
+**Admin page** (`/#admin`)
+Prototype only, signed in with email/password. Add or delete vouchers (or load three sample partners), and **Reset to Cyberjaya places**, which wipes every location, report, vote and photo and seeds five Cyberjaya places with admin-set default conditions. The real gate is the Firestore rule on the admin email, not the form.
 
 ### Not built yet
 
-These have finished UI and an explicit in-app TODO notice. They need server-side work nobody has written:
+Finished UI, missing server-side work:
 
 | Feature | What's missing |
 |---|---|
@@ -91,11 +98,12 @@ These have finished UI and an explicit in-app TODO notice. They need server-side
 | UI | React 19, Vite 8, Tailwind CSS v4 |
 | Icons | lucide-react |
 | Map | `@vis.gl/react-google-maps` (Google Maps JS API) |
-| AI | Gemini via a **Firebase Cloud Function** (callable) |
-| Data + auth | Firebase Firestore + Firebase Auth (Google provider) |
+| AI | Gemini `gemini-3.1-flash-lite` via **Firebase Cloud Functions** (callable, `asia-southeast1`) |
+| Image resize | `sharp` inside the function |
+| Data + auth | Firebase Firestore + Firebase Auth (Google provider; email/password for the admin only) |
 | Hosting | Cloudflare Workers (static assets) |
 
-The browser talks to Firestore directly, with security rules as the enforcement layer. The **one** server-side piece is the Gemini proxy — the AI key must never reach the client.
+The browser talks to Firestore directly, with security rules as the enforcement layer. Three callable functions cover what rules cannot: `checkPhoto` (Gemini + resize), `draftCouncilEmail` (Gemini), `sendSos` (nearby-helper fan-out and daily limit). The AI key never reaches the client.
 
 ### Why Gemini moved server-side
 
@@ -117,27 +125,33 @@ src/
   conditions.js           Condition model: colours, severity, freshness, pin SVGs
   distance.js             Haversine distance for "nearest places"
   verifyPhoto.js          Calls the checkPhoto Cloud Function
-  submitReport.js         Writes reports, awards points, applies or holds updates
+  submitReport.js         Writes report + photo, awards points, applies or holds updates
   votes.js                Vote writes + promotion at 2 confirmations
   feed.js                 Community feed + aggregate stats
-  leaderboard.js          Points + credibility aggregation
+  leaderboard.js          EXP, points + credibility aggregation
+  rewards.js              Vouchers, wallet, redemption batch
+  sos.js                  sendSos call, live SOS/alert watchers, helper opt-in
+  draftEmail.js           Calls the draftCouncilEmail Cloud Function
+  places.js               Cyberjaya seed data + admin reset
   reporter.js             Anonymous-reporter display fallback
   exportReport.js         CSV generation + download
-  screens/                Explore, Report, Community, Profile, Features
-  features/               SosPanel, RewardsPanel, CivicPanel (see "Not built yet")
-  ui/                     Shared components: Button, Card, Modal, BottomSheet, TodoStub, …
-  AccessibilityMap.jsx    Google Map + condition-coloured markers
+  screens/                Explore, Report, Community, Profile, Features, Admin
+  features/               SosPanel, RewardsPanel, CivicPanel
+  ui/                     Shared components: Button, Card, Modal, BottomSheet, …
+  AccessibilityMap.jsx    Google Map + condition-coloured markers + your-location dot
   PhotoVerifier.jsx       Upload → verify → submit flow
-  ReportList.jsx          Recent reports with confirm/dispute buttons
+  ReportList.jsx          Recent reports with confirm/dispute + View photo
+  ReportPhoto.jsx         View photo button + modal
   LocationDetails.jsx     Bottom sheet: per-feature state + provenance
 
 functions/
-  index.js                checkPhoto callable: auth, rate limit, Gemini call
+  index.js                checkPhoto, draftCouncilEmail, sendSos callables
   validation.js           Image input validation
   validation.test.js      Validation tests
 
+docs/report-flow.png      Report journey flowchart (presentation)
 firestore.rules           Security rules (the real backend)
-rules.test.js             14 rules tests against the Firestore emulator
+rules.test.js             20 rules tests against the Firestore emulator
 wrangler.jsonc            Cloudflare Workers static-asset config
 ```
 
@@ -264,7 +278,7 @@ firebase functions:secrets:set GEMINI_API_KEY   # paste the key from step 4
 firebase deploy --only functions
 ```
 
-Deployed to `asia-southeast1` (Singapore). The client pins the same region in `src/verifyPhoto.js` — if you change one, change both.
+Deploys three callables (`checkPhoto`, `draftCouncilEmail`, `sendSos`) to `asia-southeast1` (Singapore). The client pins the same region in `src/verifyPhoto.js`, `src/draftEmail.js` and `src/sos.js` — if you change one, change all. The first deploy pulls `sharp`'s native binary, so it takes a little longer.
 
 If the first call returns 403, grant public invoker so the request can reach the function's own auth check:
 
@@ -291,9 +305,9 @@ Do step 9 first (admin account), then open `/#admin` and press **Reset to Cyberj
 
 To add a place by hand instead, create a document in `locations` with `name`, `category`, `lat`, `lng`. Feature fields are optional — anything absent shows as "No reports yet" and gets filled in by the first verified report.
 
-### 9. Create the admin account (for vouchers)
+### 9. Create the admin account
 
-In **Authentication → Sign-in method**, enable **Email/Password**. Then in **Authentication → Users → Add user**, create `admin_upayahub@upayahub.app` with password `pwd12345678`. The rules gate voucher writes on that exact email.
+In **Authentication → Sign-in method**, enable **Email/Password**. Then in **Authentication → Users → Add user**, create `admin_upayahub@upayahub.app` with password `pwd12345678`. The rules gate voucher writes and the places reset on that exact email.
 
 Open `/#admin`, sign in with username `admin_upayahub` and that password, and either add vouchers by hand or press **Add samples** for three fake partners.
 
@@ -313,7 +327,7 @@ npm run build      # production build into dist/
 npm run preview    # serve the production build locally
 npm run lint       # eslint (covers src/ and functions/)
 npm test           # unit tests: scoring, tokens, CSV export
-npm run test:rules # 14 Firestore rules tests against the emulator
+npm run test:rules # 20 Firestore rules tests against the emulator
 ```
 
 `test:rules` needs **Java 21+**. If your default JDK is older:
@@ -397,6 +411,8 @@ Rules before the site: the current rules reject the old `submitReport` write sha
 | "Reset to Cyberjaya places" fails | Rules not redeployed (step 7), or you're signed in as a normal user rather than the admin. |
 | "Missing or insufficient permissions" | Firestore rules not deployed (step 7), or you're signed out. |
 | Photo check always fails | Function not deployed, `GEMINI_API_KEY` secret not set, or you've hit 20 checks in an hour. |
+| "View photo" shows stripes or noise | Old client-side resize. Redeploy functions; photos are now shrunk server-side. |
+| Location button seems dead | Browser blocked geolocation. An error banner over the map now says so; allow location in site settings. |
 | Photo check fails only on preview deploys | Preview URLs aren't in the function's CORS allowlist. Add the hostname to `allowedOrigins` in `functions/index.js`. |
 | Changed `.env.local`, nothing happened | Restart `npm run dev`. Vite reads env files only at startup. |
 
